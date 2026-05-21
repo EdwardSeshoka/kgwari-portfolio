@@ -83,7 +83,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Configure AWS credentials (access key fallback)
-        if: ${{ env.AWS_ROLE_TO_ASSUME == '' }}
+        if: ${{ env.AWS_ROLE_TO_ASSUME == '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
@@ -93,19 +93,26 @@ jobs:
       - name: Validate AWS deploy configuration
         run: |
           set -euo pipefail
+          aws_role_to_assume="${AWS_ROLE_TO_ASSUME:-}"
+          aws_access_key_id="${AWS_ACCESS_KEY_ID:-}"
+          aws_secret_access_key="${AWS_SECRET_ACCESS_KEY:-}"
 
           if [ -z "${ACCOUNT_ID:-}" ]; then
-            echo "ACCOUNT_ID environment variable is required for CDK deployment." >&2
+            echo "Missing variable ACCOUNT_ID."
+            echo "Set it in the selected GitHub Environment (${DEPLOY_ENVIRONMENT})."
             exit 1
           fi
 
-          if [ -z "${AWS_ROLE_TO_ASSUME:-}" ] && { [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; }; then
-            echo "Configure either AWS_ROLE_TO_ASSUME or both AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY." >&2
+          if [ -z "${aws_role_to_assume}" ] && { [ -z "${aws_access_key_id}" ] || [ -z "${aws_secret_access_key}" ]; }; then
+            echo "Missing AWS credentials. Set either:"
+            echo "- secret AWS_ROLE_TO_ASSUME (recommended OIDC role), or"
+            echo "- secrets AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY."
             exit 1
           fi
 
           if [ -n "${PORTFOLIO_DOMAIN_NAME:-}" ] && [ -z "${PORTFOLIO_CERTIFICATE_ARN:-}" ]; then
-            echo "PORTFOLIO_DOMAIN_NAME requires PORTFOLIO_CERTIFICATE_ARN for the CloudFront certificate." >&2
+            echo "Missing variable PORTFOLIO_CERTIFICATE_ARN."
+            echo "PORTFOLIO_DOMAIN_NAME requires a us-east-1 ACM certificate ARN for CloudFront."
             exit 1
           fi
 
