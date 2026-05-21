@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: GitHub Actions OIDC deploy role for the Morara Portfolio dev environment.
+
+Parameters:
+  GitHubOwner:
+    Type: String
+    Default: EdwardSeshoka
+    Description: GitHub owner or organization that owns the repository.
+
+  GitHubRepo:
+    Type: String
+    Default: morara-portfolio
+    Description: GitHub repository that may assume this role.
+
+  GitHubEnvironment:
+    Type: String
+    Default: dev
+    Description: GitHub Environment name used by the deployment workflow.
+
+  RoleName:
+    Type: String
+    Default: github-actions-morara-portfolio-dev
+    Description: IAM role name to create.
+
+  ExistingGitHubOidcProviderArn:
+    Type: String
+    Default: ""
+    Description: Optional existing IAM OIDC provider ARN for token.actions.githubusercontent.com.
+
+  ManagedPolicyArn:
+    Type: String
+    Default: arn:aws:iam::aws:policy/AdministratorAccess
+    Description: Managed policy attached to the deploy role.
+
+Conditions:
+  CreateGitHubOidcProvider: !Equals [!Ref ExistingGitHubOidcProviderArn, ""]
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateGitHubOidcProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
+  GitHubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      Description: !Sub GitHub Actions deploy role for ${GitHubOwner}/${GitHubRepo} ${GitHubEnvironment}.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateGitHubOidcProvider
+                - !Ref GitHubOidcProvider
+                - !Ref ExistingGitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub:
+                  - !Sub repo:${GitHubOwner}/${GitHubRepo}:environment:${GitHubEnvironment}
+                  - !Sub repo:${GitHubOwner}/${GitHubRepo}:ref:refs/heads/main
+      ManagedPolicyArns:
+        - !Ref ManagedPolicyArn
+      Tags:
+        - Key: Application
+          Value: morara-portfolio
+        - Key: Environment
+          Value: !Ref GitHubEnvironment
+        - Key: ManagedBy
+          Value: cloudformation
+
+Outputs:
+  GitHubActionsRoleArn:
+    Description: Save this value as the GitHub dev environment secret AWS_ROLE_TO_ASSUME.
+    Value: !GetAtt GitHubActionsRole.Arn
+
+  GitHubOidcProviderArn:
+    Description: GitHub OIDC provider used by this role.
+    Value: !If
+      - CreateGitHubOidcProvider
+      - !Ref GitHubOidcProvider
+      - !Ref ExistingGitHubOidcProviderArn

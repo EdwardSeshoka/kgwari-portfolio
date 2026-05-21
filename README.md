@@ -93,6 +93,39 @@ AWS_SECRET_ACCESS_KEY=<secret key>
 
 OIDC is preferred.
 
+### Creating The GitHub Actions Role
+
+Create the deploy role once in the dev account (`072468084892`). This role is trusted only by the `EdwardSeshoka/morara-portfolio` GitHub repo and the `dev` GitHub environment.
+
+If the dev account does not already have the GitHub OIDC provider, run:
+
+```sh
+aws cloudformation deploy \
+  --region af-south-1 \
+  --stack-name morara-dev-portfolio-github-actions-role \
+  --template-file infra/aws/github-actions-role.dev.yaml \
+  --capabilities CAPABILITY_NAMED_IAM
+```
+
+If the GitHub OIDC provider already exists, reuse it instead:
+
+```sh
+aws cloudformation deploy \
+  --region af-south-1 \
+  --stack-name morara-dev-portfolio-github-actions-role \
+  --template-file infra/aws/github-actions-role.dev.yaml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides ExistingGitHubOidcProviderArn=arn:aws:iam::072468084892:oidc-provider/token.actions.githubusercontent.com
+```
+
+After the stack completes, copy the `GitHubActionsRoleArn` output into the GitHub `dev` environment secret:
+
+```text
+AWS_ROLE_TO_ASSUME=arn:aws:iam::072468084892:role/github-actions-morara-portfolio-dev
+```
+
+The role currently uses `AdministratorAccess` because the portfolio CDK deployment creates and updates CloudFront, S3, Route 53, ACM bindings, IAM-backed CDK assets, and CloudFormation resources. Once the deploy path is stable, this can be narrowed to a least-privilege managed policy.
+
 ## DNS And Certificate Notes
 
 CloudFront requires the ACM certificate to be in `us-east-1`.
