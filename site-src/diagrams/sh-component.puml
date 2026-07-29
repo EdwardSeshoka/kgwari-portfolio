@@ -1,0 +1,49 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title morara-shared — Component view of the places capability and its Google adapter
+
+Container_Boundary(places, "@edwardseshoka/places — the capability") {
+  Component(pDomain, "Domain / Entities", "TS", "Place · PlaceSuggestion — provider-neutral")
+  Component(pUseCases, "Domain / UseCases", "TS", "PlaceUseCases — search, resolve")
+  Component(pPort, "Domain / Contracts", "Interfaces", "PlacesRepository · PlacesQueries\nNo provider argument anywhere in the signature")
+  Component(pData, "Data / Repositories + Services", "TS", "PlacesDataRepository over PlacesService (Kgwari API)")
+  Component(pMappers, "Data / Mappers", "TS", "DTO <-> Entity, one class per direction")
+  Component(pDoubles, "TestDoubles", "TS", "PlacesHTTPClientSpy · PlacesServiceStub\nmakePlace / makePlaceSuggestion")
+}
+
+Container_Boundary(gplaces, "@edwardseshoka/google-places-adapter — one SDK, one adapter") {
+  Component(gRepo, "GooglePlacesRepository", "Adapter", "Implements PlacesRepository")
+  Component(gClient, "GooglePlacesClient", "SDK client", "The only file that knows Google's wire shape")
+  Component(gMappers, "Google entity mappers", "TS", "GooglePlace(Suggestion)EntityMapper")
+  Component(gErrors, "GooglePlacesError", "TS", "Provider failures translated at the boundary")
+}
+
+Container_Ext(foundation, "@edwardseshoka/foundation", "Result · Mapper · UseCase")
+Container_Ext(be, "morara-backend-app", "Composition root picks the adapter")
+Container_Ext(fe, "morara-frontend-app", "Composition root picks the API-backed data repository")
+
+Rel(pUseCases, pPort, "Depends on")
+Rel(pUseCases, pDomain, "Operates on")
+Rel(pData, pPort, "Implements")
+Rel(pData, pMappers, "Maps with")
+Rel(pMappers, foundation, "implements Mapper<,>")
+Rel(pUseCases, foundation, "returns Result<T,E>")
+Rel(pDoubles, pPort, "Stub the same port")
+
+Rel(gRepo, pPort, "Implements the same port")
+Rel(gRepo, gClient, "Calls")
+Rel(gRepo, gMappers, "Maps with")
+Rel(gClient, gErrors, "Fails with")
+Rel(gMappers, pDomain, "Produces the neutral entities")
+
+Rel(be, gRepo, "Wires at composition", "provider chosen once, at the root")
+Rel(fe, pData, "Wires at composition")
+
+@enduml

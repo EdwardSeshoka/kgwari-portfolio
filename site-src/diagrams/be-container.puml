@@ -1,0 +1,65 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari API — Containers (per environment: morara-<env>)
+
+Person(member, "Authenticated member")
+System_Ext(frontend, "Kgwari Client", "Expo client")
+
+System_Boundary(be, "morara-backend-app — morara-<env>") {
+
+  Container_Boundary(authstack, "auth-stack") {
+    Container(userpool, "Cognito User Pool", "Amazon Cognito ESSENTIALS", "Passkeys — user verification REQUIRED\nJWT issuer · JWKS")
+    Container(postconfirm, "PostConfirmation trigger", "Lambda", "Writes the member record on sign-up")
+  }
+
+  Container_Boundary(apistack, "api-stack") {
+    Container(apigw, "HTTP API Gateway", "API Gateway v2", "JWT authorizer -> Cognito · custom domain")
+
+    Container_Boundary(lambdas, "11 route Lambdas — one bundle, one declarative route table") {
+      Container(catalogL, "Catalog", "6 lambda", "GET /public/wines · /public/featuredwine\n/public/collections · GET /wines\nPOST /wines (auth) · GET /wines/{id}")
+      Container(discoverL, "getDiscover", "1 lambda", "GET /discover — reads 6 tables")
+      Container(memberL, "Member", "2 lambda · auth", "GET /members/me (alias /user/profile)\nPATCH /members/me — partial by design")
+      Container(otpL, "OTP broker", "2 lambda · public", "POST /auth/otp/start · /auth/otp/verify\notpSession handle is the binding")
+    }
+  }
+
+  Container_Boundary(datastack, "data-stack") {
+    ContainerDb(ddb, "7 DynamoDB tables", "Amazon DynamoDB", "wines · members · provenance · editorial\nevents · social · discover-plan\nNames derived from one suffix map — no Fn::ImportValue")
+  }
+
+  Container_Boundary(webstack, "web-stack") {
+    ContainerDb(s3, "Web Bucket", "S3", "Hosts the Expo web export")
+    Container(cf, "CloudFront Distribution", "CDN", "Exports BucketName & DistributionId")
+  }
+
+  Container(seed, "seedSampleData", "Node script", "npm run seed:dev — writes @edwardseshoka/samples\ninto the dev tables")
+}
+
+System_Ext(ghpkg, "GitHub Packages")
+
+Rel(member, frontend, "Uses")
+Rel(frontend, apigw, "REST", "HTTPS · Bearer JWT")
+Rel(apigw, userpool, "Verifies JWT", "JWKS")
+Rel(apigw, catalogL, "routes")
+Rel(apigw, discoverL, "routes")
+Rel(apigw, memberL, "routes", "authorized")
+Rel(apigw, otpL, "routes", "public")
+Rel(catalogL, ddb, "Query / Get / Put", "AWS SDK v3")
+Rel(discoverL, ddb, "Query x6 pools")
+Rel(memberL, ddb, "Get / Update members")
+Rel(otpL, userpool, "AdminGetUser · AdminCreateUser", "cognito-idp")
+Rel(otpL, ddb, "Reads & writes members")
+Rel(userpool, postconfirm, "Invokes")
+Rel(postconfirm, ddb, "Writes member")
+Rel(seed, ddb, "BatchWrite", "dev only")
+Rel_U(ghpkg, seed, "Provides sample content", "build-time")
+Rel(cf, s3, "Origin")
+
+@enduml

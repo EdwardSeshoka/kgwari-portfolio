@@ -1,0 +1,32 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title morara-shared — System Context
+
+Person(maintainer, "Maintainer", "Authors changesets · merges the Version Packages PR")
+Person_Ext(consumerDev, "Consumer Developer", "Frontend / backend engineer")
+
+System(shared, "morara-shared", "Private TypeScript monorepo\nSix packages under @edwardseshoka:\ncontracts · foundation · samples · places\nphone-number-validation · google-places-adapter")
+
+System_Ext(fe, "morara-frontend-app", "Consumes contracts · foundation · samples · capabilities")
+System_Ext(be, "morara-backend-app", "Consumes contracts · foundation · samples · adapters")
+System_Ext(ghpkg, "GitHub Packages", "Private npm registry under the @edwardseshoka scope")
+System_Ext(gha, "GitHub Actions", "Changesets release workflow")
+System_Ext(docs, "kwari-docs", "Package layering doc — the rule the dependency direction follows")
+
+Rel(maintainer, shared, "Commits + changesets")
+Rel(shared, gha, "PR validation & release workflows", "on push / merge")
+Rel(gha, ghpkg, "Publishes only changed packages", "npm publish")
+Rel(consumerDev, fe, "Develops")
+Rel(consumerDev, be, "Develops")
+Rel_Back(ghpkg, fe, "Installs from", "npm install")
+Rel_Back(ghpkg, be, "Installs from", "npm install")
+Rel_U(docs, shared, "Governs layering", "review-time")
+
+@enduml

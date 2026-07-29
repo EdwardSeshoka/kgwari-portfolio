@@ -1,0 +1,47 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title morara-shared — Containers (six independently versioned packages)
+
+System_Boundary(shared, "morara-shared (npm workspaces)") {
+
+  Container(foundation, "@edwardseshoka/foundation", "v3.1.0 · zero deps", "Result<T,E> · UseCase / NoInputUseCase\nMapper<TIn,TOut> · Validator\nEmail & verification-code validation")
+
+  Container(contracts, "@edwardseshoka/contracts", "v4.1.0", "Wire DTOs for eight domains:\ncatalog · discover · editorial · events\nmember · provenance · social · trust")
+
+  Container(samples, "@edwardseshoka/samples", "v7.0.4", "Endpoint-shaped sample content per feature:\ncatalog · discover · editorial\nevents · provenance · social")
+
+  Container_Boundary(caps, "packages/capabilities — provider-agnostic domains") {
+    Container(places, "@edwardseshoka/places", "v0.2.3", "Places domain + Kgwari API data access")
+    Container(phone, "@edwardseshoka/phone-number-validation", "v0.1.1", "libphonenumber-js · PhoneCountry")
+  }
+
+  Container_Boundary(adapters, "packages/adapters — one per external SDK") {
+    Container(gplaces, "@edwardseshoka/google-places-adapter", "v0.1.4", "Google Places provider behind the places domain")
+  }
+
+  Container(cs, "Changesets", "Tooling", "Per-PR semver intent")
+  Container(release, "release workflow", "GitHub Actions", "Builds -> publishes only what changed")
+}
+
+System_Ext(ghpkg, "GitHub Packages", "@edwardseshoka scope")
+System_Ext(fe, "morara-frontend-app")
+System_Ext(be, "morara-backend-app")
+
+Rel(samples, contracts, "depends on", "workspace:*")
+Rel(places, foundation, "depends on", "workspace:*")
+Rel(gplaces, places, "implements the port of", "workspace:*")
+Rel(gplaces, foundation, "depends on", "workspace:*")
+Rel(cs, shared, "tracks bumps per package")
+Rel(release, cs, "Applies versions via")
+Rel(release, ghpkg, "Publishes changed packages")
+Rel_Back(ghpkg, fe, "Installs")
+Rel_Back(ghpkg, be, "Installs")
+
+@enduml

@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "clean": "node ./scripts/clean.mjs",
+    "diagrams": "plantuml -DPLANTUML_SECURITY_PROFILE=INTERNET -tsvg -o ../rendered site-src/diagrams/*.puml",
+    "site": "node ./site-src/build.mjs",
+    "preview": "node ./scripts/serve-site.mjs",
     "prepare:site": "node ./scripts/prepare-site.mjs",
-    "build": "npm run clean && tsc -p tsconfig.json && npm run prepare:site",
+    "build": "npm run clean && tsc -p tsconfig.json && npm run site && npm run prepare:site",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "node --test",
     "typecheck": "tsc -p tsconfig.json --noEmit",
