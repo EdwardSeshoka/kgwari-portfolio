@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Morara Shared — C4 Architecture Diagrams</title>
+<meta name="description" content="Context, container and component diagrams for the repositories behind Kgwari, a cross-platform wine-discovery product.">
+<link rel="stylesheet" href="/assets/fonts.css">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+
+<body>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <a class="brand" href="/">Kgwari<span>C4 Architecture</span></a>
+      <nav>
+        <a href="/">Overview</a>
+        <a href="/client">01 Client</a>
+        <a href="/api">02 API</a>
+        <a href="/shared" aria-current="page">03 Shared</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="page">
+  <section class="project" id="shared">
+    <div class="project-header">
+      <div class="project-number">03</div>
+      <div>
+        <h2 class="project-title">Morara Shared<small>morara-shared · TypeScript · Changesets · GitHub Packages</small></h2>
+      </div>
+      <div class="stack">
+        <span class="tag">npm workspaces</span>
+        <span class="tag">Changesets</span>
+        <span class="tag">GitHub Packages</span>
+        <span class="tag">SemVer</span>
+        <span class="tag">capabilities</span>
+        <span class="tag">adapters</span>
+      </div>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">3A — Context</span>An internal package registry</h3>
+        <p class="diagram-caption">Not a runtime system — a versioned contract surface published to GitHub Packages and consumed by both application repositories at build time.</p>
+      </div>
+      <div class="diagram-frame"><img src="/assets/diagrams/sh-context.svg" alt="sh-context diagram" width="745" height="1197" fetchpriority="high"></div>
+      <details class="source"><summary>PlantUML source</summary><pre>@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title morara-shared — System Context
+
+Person(maintainer, "Maintainer", "Authors changesets · merges the Version Packages PR")
+Person_Ext(consumerDev, "Consumer Developer", "Frontend / backend engineer")
+
+System(shared, "morara-shared", "Private TypeScript monorepo\nSix packages under @edwardseshoka:\ncontracts · foundation · samples · places\nphone-number-validation · google-places-adapter")
+
+System_Ext(fe, "morara-frontend-app", "Consumes contracts · foundation · samples · capabilities")
+System_Ext(be, "morara-backend-app", "Consumes contracts · foundation · samples · adapters")
+System_Ext(ghpkg, "GitHub Packages", "Private npm registry under the @edwardseshoka scope")
+System_Ext(gha, "GitHub Actions", "Changesets release workflow")
+System_Ext(docs, "kwari-docs", "Package layering doc — the rule the dependency direction follows")
+
+Rel(maintainer, shared, "Commits + changesets")
+Rel(shared, gha, "PR validation &amp; release workflows", "on push / merge")
+Rel(gha, ghpkg, "Publishes only changed packages", "npm publish")
+Rel(consumerDev, fe, "Develops")
+Rel(consumerDev, be, "Develops")
+Rel_Back(ghpkg, fe, "Installs from", "npm install")
+Rel_Back(ghpkg, be, "Installs from", "npm install")
+Rel_U(docs, shared, "Governs layering", "review-time")
+
+@enduml</pre></details>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">3B — Container</span>Six packages, three kinds</h3>
+        <p class="diagram-caption">Contracts and foundation are the wire and the abstractions; samples is the shared content pool; capabilities and adapters are the newer split — a provider-agnostic domain, and one adapter per external SDK.</p>
+      </div>
+      <div class="diagram-frame"><img src="/assets/diagrams/sh-container.svg" alt="sh-container diagram" width="1820" height="994" loading="lazy" decoding="async"></div>
+      <details class="source"><summary>PlantUML source</summary><pre>@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title morara-shared — Containers (six independently versioned packages)
+
+System_Boundary(shared, "morara-shared (npm workspaces)") {
+
+  Container(foundation, "@edwardseshoka/foundation", "v3.1.0 · zero deps", "Result&lt;T,E&gt; · UseCase / NoInputUseCase\nMapper&lt;TIn,TOut&gt; · Validator\nEmail &amp; verification-code validation")
+
+  Container(contracts, "@edwardseshoka/contracts", "v4.1.0", "Wire DTOs for eight domains:\ncatalog · discover · editorial · events\nmember · provenance · social · trust")
+
+  Container(samples, "@edwardseshoka/samples", "v7.0.4", "Endpoint-shaped sample content per feature:\ncatalog · discover · editorial\nevents · provenance · social")
+
+  Container_Boundary(caps, "packages/capabilities — provider-agnostic domains") {
+    Container(places, "@edwardseshoka/places", "v0.2.3", "Places domain + Kgwari API data access")
+    Container(phone, "@edwardseshoka/phone-number-validation", "v0.1.1", "libphonenumber-js · PhoneCountry")
+  }
+
+  Container_Boundary(adapters, "packages/adapters — one per external SDK") {
+    Container(gplaces, "@edwardseshoka/google-places-adapter", "v0.1.4", "Google Places provider behind the places domain")
+  }
+
+  Container(cs, "Changesets", "Tooling", "Per-PR semver intent")
+  Container(release, "release workflow", "GitHub Actions", "Builds -&gt; publishes only what changed")
+}
+
+System_Ext(ghpkg, "GitHub Packages", "@edwardseshoka scope")
+System_Ext(fe, "morara-frontend-app")
+System_Ext(be, "morara-backend-app")
+
+Rel(samples, contracts, "depends on", "workspace:*")
+Rel(places, foundation, "depends on", "workspace:*")
+Rel(gplaces, places, "implements the port of", "workspace:*")
+Rel(gplaces, foundation, "depends on", "workspace:*")
+Rel(cs, shared, "tracks bumps per package")
+Rel(release, cs, "Applies versions via")
+Rel(release, ghpkg, "Publishes changed packages")
+Rel_Back(ghpkg, fe, "Installs")
+Rel_Back(ghpkg, be, "Installs")
+
+@enduml</pre></details>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">3C — Component</span>The <code class="inline">places</code> capability and its Google adapter</h3>
+        <p class="diagram-caption">The clearest example of the layering rule: the capability owns the entities, use cases and port; the adapter is the only package that has ever heard of Google. Neither the port nor the entities take a provider argument.</p>
+      </div>
+      <div class="diagram-frame"><img src="/assets/diagrams/sh-component.svg" alt="sh-component diagram" width="1644" height="1130" loading="lazy" decoding="async"></div>
+      <details class="source"><summary>PlantUML source</summary><pre>@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title morara-shared — Component view of the places capability and its Google adapter
+
+Container_Boundary(places, "@edwardseshoka/places — the capability") {
+  Component(pDomain, "Domain / Entities", "TS", "Place · PlaceSuggestion — provider-neutral")
+  Component(pUseCases, "Domain / UseCases", "TS", "PlaceUseCases — search, resolve")
+  Component(pPort, "Domain / Contracts", "Interfaces", "PlacesRepository · PlacesQueries\nNo provider argument anywhere in the signature")
+  Component(pData, "Data / Repositories + Services", "TS", "PlacesDataRepository over PlacesService (Kgwari API)")
+  Component(pMappers, "Data / Mappers", "TS", "DTO &lt;-&gt; Entity, one class per direction")
+  Component(pDoubles, "TestDoubles", "TS", "PlacesHTTPClientSpy · PlacesServiceStub\nmakePlace / makePlaceSuggestion")
+}
+
+Container_Boundary(gplaces, "@edwardseshoka/google-places-adapter — one SDK, one adapter") {
+  Component(gRepo, "GooglePlacesRepository", "Adapter", "Implements PlacesRepository")
+  Component(gClient, "GooglePlacesClient", "SDK client", "The only file that knows Google's wire shape")
+  Component(gMappers, "Google entity mappers", "TS", "GooglePlace(Suggestion)EntityMapper")
+  Component(gErrors, "GooglePlacesError", "TS", "Provider failures translated at the boundary")
+}
+
+Container_Ext(foundation, "@edwardseshoka/foundation", "Result · Mapper · UseCase")
+Container_Ext(be, "morara-backend-app", "Composition root picks the adapter")
+Container_Ext(fe, "morara-frontend-app", "Composition root picks the API-backed data repository")
+
+Rel(pUseCases, pPort, "Depends on")
+Rel(pUseCases, pDomain, "Operates on")
+Rel(pData, pPort, "Implements")
+Rel(pData, pMappers, "Maps with")
+Rel(pMappers, foundation, "implements Mapper&lt;,&gt;")
+Rel(pUseCases, foundation, "returns Result&lt;T,E&gt;")
+Rel(pDoubles, pPort, "Stub the same port")
+
+Rel(gRepo, pPort, "Implements the same port")
+Rel(gRepo, gClient, "Calls")
+Rel(gRepo, gMappers, "Maps with")
+Rel(gClient, gErrors, "Fails with")
+Rel(gMappers, pDomain, "Produces the neutral entities")
+
+Rel(be, gRepo, "Wires at composition", "provider chosen once, at the root")
+Rel(fe, pData, "Wires at composition")
+
+@enduml</pre></details>
+    </div>
+
+    <div class="summary">
+      <div class="label">Technical Summary</div>
+      <div>
+        <p>A private monorepo of six independently versioned packages under the <code>@edwardseshoka</code> scope: <em>foundation</em> (Result, UseCase, Mapper, validators — zero dependencies), <em>contracts</em> (wire DTOs for eight domains including the shared trust vocabulary), <em>samples</em> (endpoint-shaped sample content per feature), and the <em>capabilities</em> and <em>adapters</em> pair, where a provider-agnostic domain is published separately from the one adapter per external SDK that satisfies it.</p>
+        <p>Versioning is driven by Changesets, so every pull request that touches a published package declares its own semver bump, and merging the generated “Version Packages” pull request publishes only what actually changed. The samples package earns its keep twice over: the backend seeds its dev tables from it and the frontend builds its App Doubles from it, which is what keeps local development from quietly disagreeing with the deployed system.</p>
+      </div>
+    </div>
+  </section>
+
+  <nav class="pager">
+      <a class="prev" href="/api">
+        <div class="dir">Previous</div>
+        <div class="where">Kgwari API</div>
+        <div class="what">morara-backend-app · AWS CDK · Serverless</div>
+      </a>
+  </nav>
+
+  <footer class="colophon">
+    <div>Diagrams generated from the PlantUML sources in <code>site-src/diagrams</code></div>
+    <div>C4 model · Simon Brown · c4model.com</div>
+  </footer>
+  </div>
+</body>
+</html>

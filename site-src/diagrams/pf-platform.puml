@@ -1,0 +1,44 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari — Platform Overview (five repositories, one product)
+
+Person(member, "Member", "Enthusiast or collector.\nDiscovers, cellars, records verdicts.")
+Person_Ext(verified, "Verified Account", "Professional · producer · distributor.\nEarns a trust mark; carries the byline.")
+Person_Ext(maintainer, "Maintainer", "Authors changesets · merges Version Packages · deploys per-env")
+
+System_Boundary(runtime, "Kgwari runtime (AWS af-south-1 · dev · beta · production)") {
+  System(frontend, "Kgwari Client", "morara-frontend-app\nUniversal Expo app — web today, iOS/Android prepared")
+  System(backend, "Kgwari API", "morara-backend-app\nServerless TypeScript · 12 Lambdas · 7 DynamoDB tables")
+}
+
+System_Ext(cognito, "Amazon Cognito", "User pool · passkeys + OTP · JWT issuer")
+
+System(shared, "morara-shared", "Six published packages under @edwardseshoka\ncontracts · foundation · samples · capabilities · adapters")
+System_Ext(ghpkg, "GitHub Packages", "Private npm registry (@edwardseshoka scope)")
+
+System_Ext(docs, "kwari-docs", "Single source of truth for design & architecture.\nApp repos keep pointer stubs only.")
+System(portfolio, "morara-portfolio", "This document.\nStatic S3 + CloudFront one-pager.")
+
+Rel(member, frontend, "Uses", "HTTPS")
+Rel(verified, frontend, "Publishes provenance & editorial", "HTTPS")
+Rel(frontend, backend, "Calls REST API", "HTTPS / JSON · Bearer JWT")
+Rel(frontend, cognito, "Passkey / OTP sign-in", "SRP · JWT")
+Rel(backend, cognito, "Verifies JWTs · admin OTP broker", "JWKS · cognito-idp")
+
+Rel(shared, ghpkg, "Publishes changed packages only", "Changesets")
+Rel_Back(ghpkg, frontend, "Installs contracts / samples / capabilities", "build-time")
+Rel_Back(ghpkg, backend, "Installs contracts / samples / adapters", "build-time")
+
+Rel(maintainer, shared, "Versions & releases")
+Rel(maintainer, docs, "Writes the design record")
+Rel_U(docs, runtime, "Governs the layering both repos follow", "review-time")
+Rel(maintainer, portfolio, "Publishes")
+
+@enduml

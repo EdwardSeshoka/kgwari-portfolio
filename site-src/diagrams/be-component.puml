@@ -1,0 +1,69 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari API — Component view of GET /discover (the cross-domain read)
+
+Container_Boundary(presentation, "discover/presentation") {
+  Component(handler, "makeGetDiscoverHandler(components)", "Lambda handler", "Thin adapter — no branching beyond ok() / mapError()")
+  Component(respMapper, "toDiscoverContract", "Mappers", "Entity -> wire; hero · doorway · response mappers")
+  Component(routes, "discover.routes.ts", "Route constant", "The one place the path GET /discover is written")
+}
+
+Container_Boundary(composition, "Composition root — main/app/composition") {
+  Component(appComp, "AppComposition", "Factory", "Frozen DI graph built once per cold start")
+  Component(featureComp, "Feature compositions", "TS", "catalog · discover · member — each wires its own repositories")
+  Component(envCfg, "loadRuntimeEnvironmentConfiguration", "core/config", "Table names, region, user pool — read once")
+}
+
+Container_Boundary(domain, "discover/domain (+ five sibling domains)") {
+  Component(usecase, "GetDiscoverUseCase", "NoInputUseCase<Discover>", "Fans out six repository reads with Promise.all")
+  Component(composer, "composeDiscover", "Pure function", "Resolves the plan against the pools and orders the\nFade Yield funnel: editorial · wines · doorways · events · room")
+  Component(entities, "Entities", "TS", "Discover · DiscoverPlan · DiscoverGroup\nDiscoverHighlight · Doorway")
+  Component(ports, "Repository ports", "Interfaces", "plan · wines · regions · editorial · events · activities")
+}
+
+Container_Boundary(dataLayer, "*/data — one adapter pair per domain") {
+  Component(repos, "Dynamo*Repository", "Adapters", "Implement the six ports")
+  Component(services, "Dynamo*Service", "Table access", "Query / Get / Put against a single table each")
+  Component(recMappers, "Record mappers", "TS", "DynamoDB item <-> Entity")
+}
+
+Container_Boundary(core, "packages/core — eight shared packages") {
+  Component(lambdaHttp, "lambda-http", "TS", "response · error.middleware · validate.middleware\napiGatewayEvent · JwtClaims")
+  Component(persistCore, "persistence", "TS", "partitionTable · fieldReaders")
+  Component(dynClient, "dynamodb", "@aws-sdk/lib-dynamodb", "Memoised document client")
+  Component(obs, "observability", "Powertools", "Structured JSON logger")
+  Component(domainCore, "domain", "TS", "Verdict · ProvenanceState · trust vocabulary")
+}
+
+ContainerDb_Ext(ddb, "6 DynamoDB tables", "wines · provenance · editorial\nevents · social · discover-plan")
+System_Ext(contracts, "@edwardseshoka/contracts", "Wire DTOs + trust vocabulary")
+
+Rel(routes, handler, "Names the path for")
+Rel(handler, appComp, "Receives DI graph from")
+Rel(appComp, featureComp, "Delegates wiring to")
+Rel(appComp, envCfg, "Reads runtime config")
+Rel(featureComp, repos, "Wires concrete adapters")
+Rel(handler, usecase, "Invokes")
+Rel(usecase, ports, "Depends on")
+Rel(usecase, composer, "Arranges with")
+Rel(composer, entities, "Produces")
+Rel(composer, domainCore, "Ranks by Verdict from")
+Rel(repos, ports, "Implement")
+Rel(repos, services, "Delegate to")
+Rel(repos, recMappers, "Map with")
+Rel(services, persistCore, "Partition keys & field readers")
+Rel(services, dynClient, "Uses")
+Rel(dynClient, ddb, "Query", "HTTPS")
+Rel(handler, respMapper, "Serialises through")
+Rel(respMapper, contracts, "Shapes to DTOs in")
+Rel(handler, lambdaHttp, "ok() / mapError()")
+Rel(handler, obs, "Logs through")
+
+@enduml

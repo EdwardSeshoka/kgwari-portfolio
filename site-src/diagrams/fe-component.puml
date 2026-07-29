@@ -1,0 +1,62 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari Client — Component view of the "member" feature slice (passkey-first auth)
+
+Container_Boundary(memberP, "@features/member-presentation") {
+  Component(coordinator, "Onboarding Coordinator", "View + ViewModel", "Person-first flow; drives the adaptive step")
+  Component(screens, "Screens", "React Native", "Desktop / mobile views · skeleton · error")
+  Component(vm, "ViewModels", "TS + protocol", "One ViewModelInterface per screen — the test seam")
+}
+
+Container_Boundary(memberD, "@features/member-domain") {
+  Component(authUC, "Auth use cases", "TypeScript", "RegisterPasskey · AuthenticateWithPasskey\nAuthenticateWithProvider · RequestVerificationCode\nSignInWithVerificationCode · SignOut")
+  Component(memberUC, "Member use cases", "TypeScript", "CompleteRegistration · SaveMemberDraft\nGet/PatchMemberProfile · ValidateAdaptiveStep")
+  Component(sessionUC, "Session & recall use cases", "TypeScript", "Save/Get/ObserveSessionState\nRemember / Get / ForgetRecognizedAccount")
+  Component(ports, "Ports", "Interfaces", "MemberRepository · SessionRepository\nVerificationRepository · PasskeyClient\nOtpAuthClient · MemberDraftPersistence")
+  Component(validators, "Validators", "TS", "Contact · verification code — shared with foundation")
+}
+
+Container_Boundary(memberData, "@features/member-data") {
+  Component(repos, "Repositories", "Adapters", "MemberRepository · SessionRepository · VerificationRepository")
+  Component(services, "Services", "Data access", "MemberService (HTTP) · AuthOtpService (HTTP)")
+  Component(cognitoAdapter, "CognitoAuthAdapter", "SDK adapter", "Passkey assertion · token exchange\nCognitoTokenStore")
+  Component(persistence, "Persistence", "TS", "MemberDraftPersistence · RecognizedAccountPersistence\nover Default*Storage")
+  Component(mappers, "DTO mappers", "@edwardseshoka/foundation", "DTO <-> Entity, one mapper per direction")
+  Component(dtos, "Wire DTOs", "@edwardseshoka/contracts", "AuthOtp · Member · MemberProfilePatch\nSession · RecognizedAccount")
+}
+
+Container_Ext(net, "@shared/networking", "fetch wrapper + auth header")
+Container_Ext(kv, "@shared/persistence", "KeyValueStorage seam")
+Container_Ext(doubles, "App Doubles", "non-release", "MemberRepositoryAppDouble\nVerificationRepositoryAppDouble\nAuthClientAppDoubles")
+Container_Ext(backend, "Kgwari API", "/auth/otp/* · /members/me")
+Container_Ext(cognito, "Amazon Cognito", "Passkeys · JWT")
+
+Rel(coordinator, screens, "Presents")
+Rel(screens, vm, "Bind to")
+Rel(vm, authUC, "Invokes")
+Rel(vm, memberUC, "Invokes")
+Rel(vm, sessionUC, "Observes session through")
+Rel(authUC, ports, "Depends on")
+Rel(memberUC, ports, "Depends on")
+Rel(sessionUC, ports, "Depends on")
+Rel(memberUC, validators, "Validates with")
+Rel(repos, ports, "Implement")
+Rel(doubles, ports, "Implement (non-release)", "scenario-switched")
+Rel(repos, services, "Delegate to")
+Rel(repos, mappers, "Map with")
+Rel(services, dtos, "Typed by")
+Rel(services, net, "HTTP")
+Rel(net, backend, "REST / JSON", "HTTPS")
+Rel(repos, cognitoAdapter, "Passkey & token work")
+Rel(cognitoAdapter, cognito, "SRP / WebAuthn", "AWS SDK")
+Rel(persistence, kv, "Reads / writes through")
+Rel(repos, persistence, "Drafts & recognized account")
+
+@enduml

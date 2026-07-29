@@ -1,0 +1,33 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari API — System Context
+
+Person(member, "Member", "Authenticated end user")
+Person_Ext(dev, "Developer / CI", "Deploys per-env CDK stacks; seeds dev data")
+
+System(backend, "Kgwari API", "morara-backend-app\nServerless TypeScript (dev · beta · production)\n7 feature domains · 12 Lambdas · 7 tables")
+
+System_Ext(frontend, "Kgwari Client", "Expo web / iOS / Android")
+System_Ext(cognito, "Amazon Cognito", "User pool · passkeys (verification REQUIRED)\nOTP broker · JWT issuer")
+System_Ext(gplaces, "Google Places", "Venue & region lookup via @edwardseshoka/google-places-adapter")
+System_Ext(gha, "GitHub Actions", "OIDC-assumed deploy role · matrix per environment")
+System_Ext(ghpkg, "GitHub Packages", "@edwardseshoka contracts · foundation · samples · adapters")
+
+Rel(member, frontend, "Uses")
+Rel(frontend, backend, "Calls", "HTTPS / JSON · Bearer JWT")
+Rel(backend, cognito, "Validates JWTs · brokers OTP sign-in", "JWKS · cognito-idp admin")
+Rel(cognito, backend, "Post-confirmation trigger writes the member record", "Lambda")
+Rel(backend, gplaces, "Resolves places", "HTTPS")
+Rel(dev, gha, "Pushes to main / dispatches deploy")
+Rel(gha, backend, "Synthesises & deploys CDK app", "AWS API")
+Rel(dev, backend, "Seeds dev tables", "npm run seed:dev")
+Rel_Back(backend, ghpkg, "Resolves shared packages at build", "npm install")
+
+@enduml

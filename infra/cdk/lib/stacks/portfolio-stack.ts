@@ -54,6 +54,34 @@ export class PortfolioStack extends Stack {
       );
     }
 
+    // The site is a set of pages at extensionless URLs (`/client`), each stored
+    // as `client/index.html`. S3 has no notion of a directory index below the
+    // root, so the mapping happens at the edge.
+    const indexRewrite = new cloudfront.Function(this, "PortfolioIndexRewrite", {
+      comment: "Map extensionless URLs onto the index.html inside their folder",
+      runtime: cloudfront.FunctionRuntime.JS_2_0,
+      code: cloudfront.FunctionCode.fromInline(`
+function handler(event) {
+  var request = event.request;
+  var uri = request.uri;
+
+  // "/client/" -> "/client/index.html"
+  if (uri.charAt(uri.length - 1) === '/') {
+    request.uri = uri + 'index.html';
+    return request;
+  }
+
+  // "/client" -> "/client/index.html". A dot after the last slash means the
+  // request already names a file ("/assets/site.css"), so leave it alone.
+  if (uri.lastIndexOf('.') < uri.lastIndexOf('/')) {
+    request.uri = uri + '/index.html';
+  }
+
+  return request;
+}
+`)
+    });
+
     const distribution = new cloudfront.Distribution(this, "PortfolioDistribution", {
       comment: `${environmentConfiguration.stackNamePrefix}-portfolio`,
       defaultRootObject: "index.html",
@@ -71,20 +99,30 @@ export class PortfolioStack extends Stack {
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
         cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-        compress: true
+        compress: true,
+        functionAssociations: [
+          {
+            function: indexRewrite,
+            eventType: cloudfront.FunctionEventType.VIEWER_REQUEST
+          }
+        ]
       },
+      // A private bucket answers a missing key with 403, not 404, so both map to
+      // the same page. This is a set of documents, not a single-page app: an
+      // address that does not exist should say so rather than quietly serving
+      // the overview with a 200 and looking like a working link.
       errorResponses: [
         {
           httpStatus: 403,
-          responseHttpStatus: 200,
-          responsePagePath: "/index.html",
-          ttl: Duration.seconds(0)
+          responseHttpStatus: 404,
+          responsePagePath: "/404.html",
+          ttl: Duration.minutes(5)
         },
         {
           httpStatus: 404,
-          responseHttpStatus: 200,
-          responsePagePath: "/index.html",
-          ttl: Duration.seconds(0)
+          responseHttpStatus: 404,
+          responsePagePath: "/404.html",
+          ttl: Duration.minutes(5)
         }
       ]
     });

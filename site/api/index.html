@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kgwari API — C4 Architecture Diagrams</title>
+<meta name="description" content="Context, container and component diagrams for the repositories behind Kgwari, a cross-platform wine-discovery product.">
+<link rel="stylesheet" href="/assets/fonts.css">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+
+<body>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <a class="brand" href="/">Kgwari<span>C4 Architecture</span></a>
+      <nav>
+        <a href="/">Overview</a>
+        <a href="/client">01 Client</a>
+        <a href="/api" aria-current="page">02 API</a>
+        <a href="/shared">03 Shared</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="page">
+  <section class="project" id="api">
+    <div class="project-header">
+      <div class="project-number">02</div>
+      <div>
+        <h2 class="project-title">Kgwari API<small>morara-backend-app · TypeScript · AWS CDK · Serverless</small></h2>
+      </div>
+      <div class="stack">
+        <span class="tag">AWS CDK v2</span>
+        <span class="tag">Lambda ×12</span>
+        <span class="tag">API Gateway v2</span>
+        <span class="tag">DynamoDB ×7</span>
+        <span class="tag">Cognito passkeys</span>
+        <span class="tag">Powertools</span>
+      </div>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">2A — Context</span>System boundary</h3>
+        <p class="diagram-caption">An HTTP/JSON API consumed by the Kgwari client. Identity is delegated to Cognito in both directions — the API verifies its JWTs, and Cognito calls back into a post-confirmation Lambda to create the member record.</p>
+      </div>
+      <div class="diagram-frame"><img src="/assets/diagrams/be-context.svg" alt="be-context diagram" width="866" height="934" fetchpriority="high"></div>
+      <details class="source"><summary>PlantUML source</summary><pre>@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari API — System Context
+
+Person(member, "Member", "Authenticated end user")
+Person_Ext(dev, "Developer / CI", "Deploys per-env CDK stacks; seeds dev data")
+
+System(backend, "Kgwari API", "morara-backend-app\nServerless TypeScript (dev · beta · production)\n7 feature domains · 12 Lambdas · 7 tables")
+
+System_Ext(frontend, "Kgwari Client", "Expo web / iOS / Android")
+System_Ext(cognito, "Amazon Cognito", "User pool · passkeys (verification REQUIRED)\nOTP broker · JWT issuer")
+System_Ext(gplaces, "Google Places", "Venue &amp; region lookup via @edwardseshoka/google-places-adapter")
+System_Ext(gha, "GitHub Actions", "OIDC-assumed deploy role · matrix per environment")
+System_Ext(ghpkg, "GitHub Packages", "@edwardseshoka contracts · foundation · samples · adapters")
+
+Rel(member, frontend, "Uses")
+Rel(frontend, backend, "Calls", "HTTPS / JSON · Bearer JWT")
+Rel(backend, cognito, "Validates JWTs · brokers OTP sign-in", "JWKS · cognito-idp admin")
+Rel(cognito, backend, "Post-confirmation trigger writes the member record", "Lambda")
+Rel(backend, gplaces, "Resolves places", "HTTPS")
+Rel(dev, gha, "Pushes to main / dispatches deploy")
+Rel(gha, backend, "Synthesises &amp; deploys CDK app", "AWS API")
+Rel(dev, backend, "Seeds dev tables", "npm run seed:dev")
+Rel_Back(backend, ghpkg, "Resolves shared packages at build", "npm install")
+
+@enduml</pre></details>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">2B — Container</span>Four CDK stacks · twelve Lambdas · seven tables</h3>
+        <p class="diagram-caption">Eleven of the twelve Lambdas are route handlers, and each one's IAM grants and HTTP route are derived from the same row of a declarative table — so a route cannot be wired without the table access it needs. The twelfth is the Cognito post-confirmation trigger.</p>
+      </div>
+      <div class="diagram-frame"><img src="/assets/diagrams/be-container.svg" alt="be-container diagram" width="1554" height="1895" loading="lazy" decoding="async"></div>
+      <details class="source"><summary>PlantUML source</summary><pre>@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari API — Containers (per environment: morara-&lt;env&gt;)
+
+Person(member, "Authenticated member")
+System_Ext(frontend, "Kgwari Client", "Expo client")
+
+System_Boundary(be, "morara-backend-app — morara-&lt;env&gt;") {
+
+  Container_Boundary(authstack, "auth-stack") {
+    Container(userpool, "Cognito User Pool", "Amazon Cognito ESSENTIALS", "Passkeys — user verification REQUIRED\nJWT issuer · JWKS")
+    Container(postconfirm, "PostConfirmation trigger", "Lambda", "Writes the member record on sign-up")
+  }
+
+  Container_Boundary(apistack, "api-stack") {
+    Container(apigw, "HTTP API Gateway", "API Gateway v2", "JWT authorizer -&gt; Cognito · custom domain")
+
+    Container_Boundary(lambdas, "11 route Lambdas — one bundle, one declarative route table") {
+      Container(catalogL, "Catalog", "6 lambda", "GET /public/wines · /public/featuredwine\n/public/collections · GET /wines\nPOST /wines (auth) · GET /wines/{id}")
+      Container(discoverL, "getDiscover", "1 lambda", "GET /discover — reads 6 tables")
+      Container(memberL, "Member", "2 lambda · auth", "GET /members/me (alias /user/profile)\nPATCH /members/me — partial by design")
+      Container(otpL, "OTP broker", "2 lambda · public", "POST /auth/otp/start · /auth/otp/verify\notpSession handle is the binding")
+    }
+  }
+
+  Container_Boundary(datastack, "data-stack") {
+    ContainerDb(ddb, "7 DynamoDB tables", "Amazon DynamoDB", "wines · members · provenance · editorial\nevents · social · discover-plan\nNames derived from one suffix map — no Fn::ImportValue")
+  }
+
+  Container_Boundary(webstack, "web-stack") {
+    ContainerDb(s3, "Web Bucket", "S3", "Hosts the Expo web export")
+    Container(cf, "CloudFront Distribution", "CDN", "Exports BucketName &amp; DistributionId")
+  }
+
+  Container(seed, "seedSampleData", "Node script", "npm run seed:dev — writes @edwardseshoka/samples\ninto the dev tables")
+}
+
+System_Ext(ghpkg, "GitHub Packages")
+
+Rel(member, frontend, "Uses")
+Rel(frontend, apigw, "REST", "HTTPS · Bearer JWT")
+Rel(apigw, userpool, "Verifies JWT", "JWKS")
+Rel(apigw, catalogL, "routes")
+Rel(apigw, discoverL, "routes")
+Rel(apigw, memberL, "routes", "authorized")
+Rel(apigw, otpL, "routes", "public")
+Rel(catalogL, ddb, "Query / Get / Put", "AWS SDK v3")
+Rel(discoverL, ddb, "Query x6 pools")
+Rel(memberL, ddb, "Get / Update members")
+Rel(otpL, userpool, "AdminGetUser · AdminCreateUser", "cognito-idp")
+Rel(otpL, ddb, "Reads &amp; writes members")
+Rel(userpool, postconfirm, "Invokes")
+Rel(postconfirm, ddb, "Writes member")
+Rel(seed, ddb, "BatchWrite", "dev only")
+Rel_U(ghpkg, seed, "Provides sample content", "build-time")
+Rel(cf, s3, "Origin")
+
+@enduml</pre></details>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">2C — Component</span>Inside <code class="inline">GET /discover</code></h3>
+        <p class="diagram-caption">The one route that reads across six domains. The use case fans out six repository reads concurrently; a pure function then arranges the results into the feed. Nothing in the composer fetches, so the whole arrangement is testable without AWS.</p>
+      </div>
+      <div class="diagram-frame"><img src="/assets/diagrams/be-component.svg" alt="be-component diagram" width="1714" height="1846" loading="lazy" decoding="async"></div>
+      <details class="source"><summary>PlantUML source</summary><pre>@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari API — Component view of GET /discover (the cross-domain read)
+
+Container_Boundary(presentation, "discover/presentation") {
+  Component(handler, "makeGetDiscoverHandler(components)", "Lambda handler", "Thin adapter — no branching beyond ok() / mapError()")
+  Component(respMapper, "toDiscoverContract", "Mappers", "Entity -&gt; wire; hero · doorway · response mappers")
+  Component(routes, "discover.routes.ts", "Route constant", "The one place the path GET /discover is written")
+}
+
+Container_Boundary(composition, "Composition root — main/app/composition") {
+  Component(appComp, "AppComposition", "Factory", "Frozen DI graph built once per cold start")
+  Component(featureComp, "Feature compositions", "TS", "catalog · discover · member — each wires its own repositories")
+  Component(envCfg, "loadRuntimeEnvironmentConfiguration", "core/config", "Table names, region, user pool — read once")
+}
+
+Container_Boundary(domain, "discover/domain (+ five sibling domains)") {
+  Component(usecase, "GetDiscoverUseCase", "NoInputUseCase&lt;Discover&gt;", "Fans out six repository reads with Promise.all")
+  Component(composer, "composeDiscover", "Pure function", "Resolves the plan against the pools and orders the\nFade Yield funnel: editorial · wines · doorways · events · room")
+  Component(entities, "Entities", "TS", "Discover · DiscoverPlan · DiscoverGroup\nDiscoverHighlight · Doorway")
+  Component(ports, "Repository ports", "Interfaces", "plan · wines · regions · editorial · events · activities")
+}
+
+Container_Boundary(dataLayer, "*/data — one adapter pair per domain") {
+  Component(repos, "Dynamo*Repository", "Adapters", "Implement the six ports")
+  Component(services, "Dynamo*Service", "Table access", "Query / Get / Put against a single table each")
+  Component(recMappers, "Record mappers", "TS", "DynamoDB item &lt;-&gt; Entity")
+}
+
+Container_Boundary(core, "packages/core — eight shared packages") {
+  Component(lambdaHttp, "lambda-http", "TS", "response · error.middleware · validate.middleware\napiGatewayEvent · JwtClaims")
+  Component(persistCore, "persistence", "TS", "partitionTable · fieldReaders")
+  Component(dynClient, "dynamodb", "@aws-sdk/lib-dynamodb", "Memoised document client")
+  Component(obs, "observability", "Powertools", "Structured JSON logger")
+  Component(domainCore, "domain", "TS", "Verdict · ProvenanceState · trust vocabulary")
+}
+
+ContainerDb_Ext(ddb, "6 DynamoDB tables", "wines · provenance · editorial\nevents · social · discover-plan")
+System_Ext(contracts, "@edwardseshoka/contracts", "Wire DTOs + trust vocabulary")
+
+Rel(routes, handler, "Names the path for")
+Rel(handler, appComp, "Receives DI graph from")
+Rel(appComp, featureComp, "Delegates wiring to")
+Rel(appComp, envCfg, "Reads runtime config")
+Rel(featureComp, repos, "Wires concrete adapters")
+Rel(handler, usecase, "Invokes")
+Rel(usecase, ports, "Depends on")
+Rel(usecase, composer, "Arranges with")
+Rel(composer, entities, "Produces")
+Rel(composer, domainCore, "Ranks by Verdict from")
+Rel(repos, ports, "Implement")
+Rel(repos, services, "Delegate to")
+Rel(repos, recMappers, "Map with")
+Rel(services, persistCore, "Partition keys &amp; field readers")
+Rel(services, dynClient, "Uses")
+Rel(dynClient, ddb, "Query", "HTTPS")
+Rel(handler, respMapper, "Serialises through")
+Rel(respMapper, contracts, "Shapes to DTOs in")
+Rel(handler, lambdaHttp, "ok() / mapError()")
+Rel(handler, obs, "Logs through")
+
+@enduml</pre></details>
+    </div>
+
+    <div class="summary">
+      <div class="label">Technical Summary</div>
+      <div>
+        <p>A serverless TypeScript backend of seven feature domains — catalog, discover, editorial, events, member, provenance, social — each split into data, domain and presentation, sitting on eight <code>packages/core</code> libraries for HTTP adaptation, persistence, configuration, observability and the shared trust vocabulary. Four CDK stacks (auth, data, api, web) provision it into three account-isolated environments in af-south-1.</p>
+        <p>The infrastructure is written to remove whole classes of drift rather than to be clever. Physical table names come from one suffix map that both the creating and the consuming stack derive from, and consumers reference tables by derived name instead of <code>Fn::ImportValue</code> — which is what lets a data-stack change proceed without deadlocking its dependants. Routes, Lambdas and grants come from a single declarative table. A moved resource keeps its old address through an explicit alias path rather than a duplicated function, so already-shipped clients keep working while the new one ships.</p>
+      </div>
+    </div>
+  </section>
+
+  <nav class="pager">
+      <a class="prev" href="/client">
+        <div class="dir">Previous</div>
+        <div class="where">Kgwari Client</div>
+        <div class="what">morara-frontend-app · Expo · React Native + Web</div>
+      </a>
+      <a class="next" href="/shared">
+        <div class="dir">Next</div>
+        <div class="where">Morara Shared</div>
+        <div class="what">morara-shared · Changesets · GitHub Packages</div>
+      </a>
+  </nav>
+
+  <footer class="colophon">
+    <div>Diagrams generated from the PlantUML sources in <code>site-src/diagrams</code></div>
+    <div>C4 model · Simon Brown · c4model.com</div>
+  </footer>
+  </div>
+</body>
+</html>

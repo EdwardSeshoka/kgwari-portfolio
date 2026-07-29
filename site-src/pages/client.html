@@ -1,0 +1,55 @@
+  <section class="project" id="client">
+    <div class="project-header">
+      <div class="project-number">01</div>
+      <div>
+        <h2 class="project-title">Kgwari Client<small>morara-frontend-app · TypeScript · Expo · React Native + Web</small></h2>
+      </div>
+      <div class="stack">
+        <span class="tag">Expo 54</span>
+        <span class="tag">expo-router 6</span>
+        <span class="tag">React 19.1</span>
+        <span class="tag">RN 0.81</span>
+        <span class="tag">pnpm workspaces</span>
+        <span class="tag">i18next</span>
+        <span class="tag">S3 + CloudFront</span>
+      </div>
+    </div>
+
+    <!-- 1A: CONTEXT -->
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">1A — Context</span>People &amp; external systems</h3>
+        <p class="diagram-caption">Three kinds of person now use the client, and the difference matters: a member carries a status word, a verified account carries a trust mark, and a reviewer walks the same build with the network swapped out.</p>
+      </div>
+      <div class="diagram-frame" data-puml-id="fe-context"></div>
+      <details class="source"><summary>PlantUML source</summary><pre data-puml-source="fe-context"></pre></details>
+    </div>
+
+    <!-- 1B: CONTAINER -->
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">1B — Container</span>Nine feature domains, one bundle</h3>
+        <p class="diagram-caption">Twenty-four workspace packages compile to a single Expo bundle. The composition root is the only place a concrete adapter is named, which is what makes the App Doubles swap a configuration change rather than a code change.</p>
+      </div>
+      <div class="diagram-frame" data-puml-id="fe-container"></div>
+      <details class="source"><summary>PlantUML source</summary><pre data-puml-source="fe-container"></pre></details>
+    </div>
+
+    <!-- 1C: COMPONENT -->
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">1C — Component</span>Inside the <code class="inline">member</code> feature slice</h3>
+        <p class="diagram-caption">The richest slice in the repo: eighteen use cases behind six ports, with passkeys, an OTP fallback, unsent drafts and account recall each entering through a different adapter but leaving through the same domain.</p>
+      </div>
+      <div class="diagram-frame" data-puml-id="fe-component"></div>
+      <details class="source"><summary>PlantUML source</summary><pre data-puml-source="fe-component"></pre></details>
+    </div>
+
+    <div class="summary">
+      <div class="label">Technical Summary</div>
+      <div>
+        <p>A universal Expo application shipped as a pnpm-workspaces monorepo: nineteen feature packages across nine domains — catalog, cellar, discover, editorial, events, member, provenance, search, social — over five shared packages for the design system, presentation core, localization, networking and persistence. Presentation is strictly MVVM: every screen has a <code>ViewModelInterface</code>, which is the seam the tests bind to instead of the React tree.</p>
+        <p>Two decisions carry most of the weight. The first is the runtime split between <em>BuildFlavor</em> and <em>AppEnvironment</em>: non-release builds expose an in-app environment switcher and pluggable App Doubles that substitute at the repository boundary, so a single deployable bundle can produce deterministic offline states for design review. The second is that persistence goes through a <code>KeyValueStorage</code> seam rather than touching platform storage directly — the same reason the member slice can test draft-saving and account recall without a browser.</p>
+      </div>
+    </div>
+  </section>

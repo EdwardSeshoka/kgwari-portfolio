@@ -1,0 +1,51 @@
+  <section class="project" id="shared">
+    <div class="project-header">
+      <div class="project-number">03</div>
+      <div>
+        <h2 class="project-title">Morara Shared<small>morara-shared · TypeScript · Changesets · GitHub Packages</small></h2>
+      </div>
+      <div class="stack">
+        <span class="tag">npm workspaces</span>
+        <span class="tag">Changesets</span>
+        <span class="tag">GitHub Packages</span>
+        <span class="tag">SemVer</span>
+        <span class="tag">capabilities</span>
+        <span class="tag">adapters</span>
+      </div>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">3A — Context</span>An internal package registry</h3>
+        <p class="diagram-caption">Not a runtime system — a versioned contract surface published to GitHub Packages and consumed by both application repositories at build time.</p>
+      </div>
+      <div class="diagram-frame" data-puml-id="sh-context"></div>
+      <details class="source"><summary>PlantUML source</summary><pre data-puml-source="sh-context"></pre></details>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">3B — Container</span>Six packages, three kinds</h3>
+        <p class="diagram-caption">Contracts and foundation are the wire and the abstractions; samples is the shared content pool; capabilities and adapters are the newer split — a provider-agnostic domain, and one adapter per external SDK.</p>
+      </div>
+      <div class="diagram-frame" data-puml-id="sh-container"></div>
+      <details class="source"><summary>PlantUML source</summary><pre data-puml-source="sh-container"></pre></details>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">3C — Component</span>The <code class="inline">places</code> capability and its Google adapter</h3>
+        <p class="diagram-caption">The clearest example of the layering rule: the capability owns the entities, use cases and port; the adapter is the only package that has ever heard of Google. Neither the port nor the entities take a provider argument.</p>
+      </div>
+      <div class="diagram-frame" data-puml-id="sh-component"></div>
+      <details class="source"><summary>PlantUML source</summary><pre data-puml-source="sh-component"></pre></details>
+    </div>
+
+    <div class="summary">
+      <div class="label">Technical Summary</div>
+      <div>
+        <p>A private monorepo of six independently versioned packages under the <code>@edwardseshoka</code> scope: <em>foundation</em> (Result, UseCase, Mapper, validators — zero dependencies), <em>contracts</em> (wire DTOs for eight domains including the shared trust vocabulary), <em>samples</em> (endpoint-shaped sample content per feature), and the <em>capabilities</em> and <em>adapters</em> pair, where a provider-agnostic domain is published separately from the one adapter per external SDK that satisfies it.</p>
+        <p>Versioning is driven by Changesets, so every pull request that touches a published package declares its own semver bump, and merging the generated “Version Packages” pull request publishes only what actually changed. The samples package earns its keep twice over: the backend seeds its dev tables from it and the frontend builds its App Doubles from it, which is what keeps local development from quietly disagreeing with the deployed system.</p>
+      </div>
+    </div>
+  </section>
