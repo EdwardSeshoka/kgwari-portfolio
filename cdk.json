@@ -1,12 +1,19 @@
 {
   "app": "node dist/infra/cdk/bin/app.js",
   "context": {
-    "devAccountId": "072468084892",
-    "devRegion": "af-south-1",
-    "betaRegion": "af-south-1",
-    "productionRegion": "af-south-1",
-    "defaultRegion": "af-south-1",
-    "devPortfolioDomainName": "portfolio.dev.morara.wine",
-    "devPortfolioHostedZoneName": "dev.morara.wine"
+    "_comment": [
+      "The portfolio shares the kgwari-dev account (269608740515) rather than",
+      "owning one: it is a showcase, not the product, and the dev.kgwari.com zone",
+      "already lives there — so the record needs no delegation of its own.",
+      "",
+      "No region keys: the region is decided in",
+      "infra/cdk/lib/config/environment-configuration.ts. No certificate ARN: the",
+      "certificate is created by CDK in us-east-1, where CloudFront requires it.",
+      "Both used to be pasted here, and a pasted ARN is how a certificate for the",
+      "wrong region survives a move unnoticed until deploy."
+    ],
+    "devAccountId": "269608740515",
+    "devPortfolioDomainName": "portfolio.dev.kgwari.com",
+    "devPortfolioHostedZoneName": "dev.kgwari.com"
   }
 }

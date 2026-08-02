@@ -1,91 +1,149 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: GitHub Actions OIDC deploy role for the Morara Portfolio dev environment.
+
+# The role CI assumes to deploy the portfolio. Least privilege — it no longer
+# carries AdministratorAccess, and it no longer creates its own OIDC provider.
+#
+# **How it deploys without permission to create anything.** `cdk deploy` does
+# not build resources with these credentials: it assumes the bootstrap roles,
+# and CloudFormation assumes `cfn-exec-role` to do the work. So this role needs
+# `sts:AssumeRole` on the `cdk-*` roles, plus the few calls the workflow makes
+# directly — read the stack for the bucket, sync the built site, invalidate.
+#
+# **Prerequisites, both already present in kgwari-dev:** the OIDC provider and
+# the CDK bootstrap, created by the backend repository's environment build. One
+# provider exists per account, so this template imports it rather than creating
+# a second one, which would fail with `EntityAlreadyExists`.
+#
+# Deploy into kgwari-dev (269608740515):
+#
+#   aws cloudformation deploy \
+#     --region eu-west-1 \
+#     --stack-name kgwari-github-actions-portfolio-role \
+#     --template-file infra/aws/github-actions-role.dev.yaml \
+#     --capabilities CAPABILITY_NAMED_IAM
+
+Description: GitHub Actions deploy role for the kgwari portfolio (least privilege)
 
 Parameters:
   GitHubOwner:
     Type: String
     Default: EdwardSeshoka
-    Description: GitHub owner or organization that owns the repository.
 
   GitHubRepo:
     Type: String
     Default: kgwari-portfolio
-    Description: GitHub repository that may assume this role.
 
   GitHubEnvironment:
     Type: String
     Default: dev
-    Description: GitHub Environment name used by the deployment workflow.
+
+  StackNamePrefix:
+    Type: String
+    Default: kgwari-dev
+    Description: Matches stackNamePrefix in environment-configuration.ts.
 
   RoleName:
     Type: String
-    Default: github-actions-morara-portfolio-dev
-    Description: IAM role name to create.
+    Default: github-actions-kgwari-portfolio-dev
 
-  ExistingGitHubOidcProviderArn:
+  BootstrapQualifier:
     Type: String
-    Default: ""
-    Description: Optional existing IAM OIDC provider ARN for token.actions.githubusercontent.com.
-
-  ManagedPolicyArn:
-    Type: String
-    Default: arn:aws:iam::aws:policy/AdministratorAccess
-    Description: Managed policy attached to the deploy role.
-
-Conditions:
-  CreateGitHubOidcProvider: !Equals [!Ref ExistingGitHubOidcProviderArn, ""]
+    Default: hnb659fds
 
 Resources:
-  GitHubOidcProvider:
-    Type: AWS::IAM::OIDCProvider
-    Condition: CreateGitHubOidcProvider
-    Properties:
-      Url: https://token.actions.githubusercontent.com
-      ClientIdList:
-        - sts.amazonaws.com
-      ThumbprintList:
-        - 6938fd4d98bab03faadb97b34396831e3780aea1
-
-  GitHubActionsRole:
+  PortfolioDeployRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Ref RoleName
-      Description: !Sub GitHub Actions deploy role for ${GitHubOwner}/${GitHubRepo} ${GitHubEnvironment}.
+      Description: Deploys the portfolio stacks and publishes the built site.
+      MaxSessionDuration: 3600
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
-              Federated: !If
-                - CreateGitHubOidcProvider
-                - !Ref GitHubOidcProvider
-                - !Ref ExistingGitHubOidcProviderArn
+              Federated: !ImportValue kgwari-github-oidc-provider-arn
             Action: sts:AssumeRoleWithWebIdentity
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
               StringLike:
+                # Four subjects: the workflow runs both against the `dev`
+                # environment and directly on `main` without one, and GitHub now
+                # mints an **immutable subject** carrying numeric owner and
+                # repository ids (`repo:owner@123/name@456:…`). An exact match on
+                # the classic format stops matching the day either is adopted —
+                # which is how this broke the first time CI ran after a rename.
                 token.actions.githubusercontent.com:sub:
                   - !Sub repo:${GitHubOwner}/${GitHubRepo}:environment:${GitHubEnvironment}
+                  - !Sub repo:${GitHubOwner}@*/${GitHubRepo}@*:environment:${GitHubEnvironment}
                   - !Sub repo:${GitHubOwner}/${GitHubRepo}:ref:refs/heads/main
-      ManagedPolicyArns:
-        - !Ref ManagedPolicyArn
+                  - !Sub repo:${GitHubOwner}@*/${GitHubRepo}@*:ref:refs/heads/main
+      Policies:
+        - PolicyName: deploy-portfolio
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: AssumeCdkBootstrapRoles
+                Effect: Allow
+                Action: sts:AssumeRole
+                Resource:
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-${BootstrapQualifier}-deploy-role-${AWS::AccountId}-eu-west-1
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-${BootstrapQualifier}-file-publishing-role-${AWS::AccountId}-eu-west-1
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-${BootstrapQualifier}-lookup-role-${AWS::AccountId}-eu-west-1
+                  # us-east-1 holds the CloudFront certificate stack.
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-${BootstrapQualifier}-deploy-role-${AWS::AccountId}-us-east-1
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-${BootstrapQualifier}-file-publishing-role-${AWS::AccountId}-us-east-1
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-${BootstrapQualifier}-lookup-role-${AWS::AccountId}-us-east-1
+
+              - Sid: ReadBootstrapVersion
+                Effect: Allow
+                Action: ssm:GetParameter
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ssm:eu-west-1:${AWS::AccountId}:parameter/cdk-bootstrap/${BootstrapQualifier}/version
+                  - !Sub arn:${AWS::Partition}:ssm:us-east-1:${AWS::AccountId}:parameter/cdk-bootstrap/${BootstrapQualifier}/version
+
+              # The zone lookup CDK performs at synth so the certificate can
+              # validate against dev.kgwari.com, which the backend's dns stack
+              # owns in this same account.
+              - Sid: LookupHostedZone
+                Effect: Allow
+                Action:
+                  - route53:ListHostedZonesByName
+                  - route53:GetHostedZone
+                Resource: "*"
+
+              - Sid: ReadPortfolioStack
+                Effect: Allow
+                Action: cloudformation:DescribeStacks
+                Resource: !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${StackNamePrefix}-portfolio/*
+
+              - Sid: PublishSite
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                Resource: !Sub arn:${AWS::Partition}:s3:::${StackNamePrefix}-portfolio-websitebucket*
+
+              - Sid: PublishSiteObjects
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub arn:${AWS::Partition}:s3:::${StackNamePrefix}-portfolio-websitebucket*/*
+
+              - Sid: InvalidateCache
+                Effect: Allow
+                Action: cloudfront:CreateInvalidation
+                Resource: !Sub arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/*
       Tags:
         - Key: Application
           Value: kgwari-portfolio
-        - Key: Environment
-          Value: !Ref GitHubEnvironment
         - Key: ManagedBy
           Value: cloudformation
 
 Outputs:
-  GitHubActionsRoleArn:
-    Description: Save this value as the GitHub dev environment secret AWS_ROLE_TO_ASSUME.
-    Value: !GetAtt GitHubActionsRole.Arn
-
-  GitHubOidcProviderArn:
-    Description: GitHub OIDC provider used by this role.
-    Value: !If
-      - CreateGitHubOidcProvider
-      - !Ref GitHubOidcProvider
-      - !Ref ExistingGitHubOidcProviderArn
+  RoleArn:
+    Description: Set as AWS_ROLE_TO_ASSUME on the dev GitHub environment
+    Value: !GetAtt PortfolioDeployRole.Arn

@@ -2,15 +2,15 @@
 
 Static architecture site for Kgwari — an overview page plus one page per repository.
 
-The product is **Kgwari**; this repository, the CDK stacks and the AWS resources still carry the earlier `morara-` prefix while the rename is in flight. The page follows the same convention: product name in prose, literal repository and resource names everywhere they are the thing you would actually type.
+The product is **Kgwari**, and so is everything else now: the repository, the CDK stacks and the AWS resources. The page follows the same convention — product name in prose, literal repository and resource names everywhere they are the thing you would actually type.
 
 The dev deployment is intended to be served from:
 
 ```text
-https://portfolio.dev.morara.wine
+https://portfolio.dev.kgwari.com
 ```
 
-That subdomain follows the current convention used by `app.dev.morara.wine`.
+That subdomain follows the current convention used by `app.dev.kgwari.com`.
 
 ## Pages
 
@@ -116,10 +116,9 @@ For the `dev` GitHub environment, configure:
 ```text
 ACCOUNT_ID=072468084892
 AWS_REGION=af-south-1
-PORTFOLIO_DOMAIN_NAME=portfolio.dev.morara.wine
-PORTFOLIO_HOSTED_ZONE_NAME=dev.morara.wine
+PORTFOLIO_DOMAIN_NAME=portfolio.dev.kgwari.com
+PORTFOLIO_HOSTED_ZONE_NAME=dev.kgwari.com
 PORTFOLIO_HOSTED_ZONE_ID=<optional if CDK lookup is allowed>
-PORTFOLIO_CERTIFICATE_ARN=<us-east-1 ACM certificate ARN for portfolio.dev.morara.wine>
 ```
 
 Optional overrides:
@@ -186,14 +185,14 @@ The role currently uses `AdministratorAccess` because the portfolio CDK deployme
 
 CloudFront requires the ACM certificate to be in `us-east-1`.
 
-If `PORTFOLIO_HOSTED_ZONE_NAME` points at the delegated dev hosted zone (`dev.morara.wine`) and the workflow role has Route 53 permissions, CDK creates:
+If `PORTFOLIO_HOSTED_ZONE_NAME` points at the delegated dev hosted zone (`dev.kgwari.com`) and the workflow role has Route 53 permissions, CDK creates:
 
 ```text
-portfolio.dev.morara.wine A     -> CloudFront
-portfolio.dev.morara.wine AAAA  -> CloudFront
+portfolio.dev.kgwari.com A     -> CloudFront
+portfolio.dev.kgwari.com AAAA  -> CloudFront
 ```
 
-The parent `morara.wine` hosted zone should only delegate `dev.morara.wine` to the dev account. It should not contain individual app records for `portfolio.dev.morara.wine`.
+The parent `kgwari.com` hosted zone should only delegate `dev.kgwari.com` to the dev account. It should not contain individual app records for `portfolio.dev.kgwari.com`.
 
 ## Useful Commands
 

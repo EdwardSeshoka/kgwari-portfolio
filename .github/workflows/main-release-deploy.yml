@@ -119,7 +119,7 @@ jobs:
       - name: Deploy CDK stack
         run: |
           set -euo pipefail
-          npx cdk deploy "morara-${DEPLOY_ENVIRONMENT}/*" \
+          npx cdk deploy "kgwari-${DEPLOY_ENVIRONMENT}/*" \
             --require-approval never \
             --app "node dist/infra/cdk/bin/app.js"
 
@@ -128,7 +128,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          STACK_NAME="${PORTFOLIO_STACK_NAME:-morara-${DEPLOY_ENVIRONMENT}-portfolio}"
+          STACK_NAME="${PORTFOLIO_STACK_NAME:-kgwari-${DEPLOY_ENVIRONMENT}-portfolio}"
           BUCKET="${S3_BUCKET:-}"
           DISTRIBUTION_ID="${CLOUDFRONT_DISTRIBUTION_ID:-}"
 

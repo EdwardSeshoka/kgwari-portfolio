@@ -1,6 +1,12 @@
 import type { AppEnvironment } from "./app-environment.js";
 
-const DEFAULT_AWS_REGION = "af-south-1";
+/**
+ * Ireland, following the platform out of Cape Town — see kgwari-docs
+ * `platform/region-move-aws-preparation.md`. The portfolio moved after the
+ * product rather than with it: renaming its stacks in the region it was about
+ * to leave would have paid for the same migration twice.
+ */
+const DEFAULT_AWS_REGION = "eu-west-1";
 
 export type EnvironmentConfiguration = Readonly<{
   appEnvironment: AppEnvironment;
@@ -14,7 +20,7 @@ export type EnvironmentConfiguration = Readonly<{
 export const ENVIRONMENT_CONFIGURATIONS: Record<AppEnvironment, EnvironmentConfiguration> = {
   dev: {
     appEnvironment: "dev",
-    stackNamePrefix: "morara-dev",
+    stackNamePrefix: "kgwari-dev",
     infrastructure: {
       allowDestructiveChanges: true,
       defaultRegion: DEFAULT_AWS_REGION
@@ -22,7 +28,7 @@ export const ENVIRONMENT_CONFIGURATIONS: Record<AppEnvironment, EnvironmentConfi
   },
   beta: {
     appEnvironment: "beta",
-    stackNamePrefix: "morara-beta",
+    stackNamePrefix: "kgwari-beta",
     infrastructure: {
       allowDestructiveChanges: false,
       defaultRegion: DEFAULT_AWS_REGION
@@ -30,7 +36,7 @@ export const ENVIRONMENT_CONFIGURATIONS: Record<AppEnvironment, EnvironmentConfi
   },
   production: {
     appEnvironment: "production",
-    stackNamePrefix: "morara-production",
+    stackNamePrefix: "kgwari-production",
     infrastructure: {
       allowDestructiveChanges: false,
       defaultRegion: DEFAULT_AWS_REGION

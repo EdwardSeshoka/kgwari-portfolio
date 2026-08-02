@@ -14,7 +14,8 @@ export type PortfolioStackProps = StackProps & {
   portfolioDomainName?: string;
   portfolioHostedZoneName?: string;
   portfolioHostedZoneId?: string;
-  portfolioCertificateArn?: string;
+  /** Created by PortfolioCertificateStack in us-east-1, where CloudFront needs it. */
+  portfolioCertificate?: acm.ICertificate;
 };
 
 export class PortfolioStack extends Stack {
@@ -37,20 +38,11 @@ export class PortfolioStack extends Stack {
     const domainName = props.portfolioDomainName?.trim() || undefined;
     const hostedZoneName = props.portfolioHostedZoneName?.trim() || undefined;
     const hostedZoneId = props.portfolioHostedZoneId?.trim() || undefined;
-    const certificateArn = props.portfolioCertificateArn?.trim() || undefined;
+    const certificate = props.portfolioCertificate;
 
-    let certificate: acm.ICertificate | undefined;
-    if (domainName) {
-      if (!certificateArn) {
-        throw new Error(
-          `Custom portfolio domain '${domainName}' requires a us-east-1 ACM certificate ARN. Set PORTFOLIO_CERTIFICATE_ARN.`
-        );
-      }
-
-      certificate = acm.Certificate.fromCertificateArn(
-        this,
-        "PortfolioCertificate",
-        certificateArn
+    if (domainName && !certificate) {
+      throw new Error(
+        `Custom portfolio domain '${domainName}' needs its certificate. The stage builds one in PortfolioCertificateStack — check devPortfolioHostedZoneName is set in cdk.json context.`
       );
     }
 
