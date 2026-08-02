@@ -9,7 +9,7 @@ Parameters:
 
   GitHubRepo:
     Type: String
-    Default: morara-portfolio
+    Default: kgwari-portfolio
     Description: GitHub repository that may assume this role.
 
   GitHubEnvironment:
@@ -72,7 +72,7 @@ Resources:
         - !Ref ManagedPolicyArn
       Tags:
         - Key: Application
-          Value: morara-portfolio
+          Value: kgwari-portfolio
         - Key: Environment
           Value: !Ref GitHubEnvironment
         - Key: ManagedBy

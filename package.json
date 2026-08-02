@@ -1,5 +1,5 @@
 {
-  "name": "morara-portfolio",
+  "name": "kgwari-portfolio",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -14,9 +14,9 @@
     "test": "node --test",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "version:validate": "node ./scripts/portfolio-version.mjs validate",
-    "cdk:deploy:dev": "npm run build && DEPLOY_ENVIRONMENT=dev npx cdk deploy \"morara-dev/*\" --require-approval never --app \"node dist/infra/cdk/bin/app.js\"",
-    "cdk:deploy:beta": "npm run build && DEPLOY_ENVIRONMENT=beta npx cdk deploy \"morara-beta/*\" --require-approval never --app \"node dist/infra/cdk/bin/app.js\"",
-    "cdk:deploy:production": "npm run build && DEPLOY_ENVIRONMENT=production npx cdk deploy \"morara-production/*\" --require-approval never --app \"node dist/infra/cdk/bin/app.js\""
+    "cdk:deploy:dev": "npm run build && DEPLOY_ENVIRONMENT=dev npx cdk deploy \"kgwari-dev/*\" --require-approval never --app \"node dist/infra/cdk/bin/app.js\"",
+    "cdk:deploy:beta": "npm run build && DEPLOY_ENVIRONMENT=beta npx cdk deploy \"kgwari-beta/*\" --require-approval never --app \"node dist/infra/cdk/bin/app.js\"",
+    "cdk:deploy:production": "npm run build && DEPLOY_ENVIRONMENT=production npx cdk deploy \"kgwari-production/*\" --require-approval never --app \"node dist/infra/cdk/bin/app.js\""
   },
   "devDependencies": {
     "@types/node": "^25.2.3",
