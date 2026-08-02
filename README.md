@@ -17,9 +17,9 @@ That subdomain follows the current convention used by `app.dev.morara.wine`.
 | URL | Contents |
 | --- | --- |
 | `/` | Cover, contents, and the platform overview diagram |
-| `/client` | `morara-frontend-app` — context, container, component |
-| `/api` | `morara-backend-app` — context, container, component |
-| `/shared` | `morara-shared` — context, container, component |
+| `/client` | `kgwari-frontend-app` — context, container, component |
+| `/api` | `kgwari-backend-app` — context, container, component |
+| `/shared` | `kgwari-shared` — context, container, component |
 
 URLs are extensionless. Each page is stored as `<slug>/index.html`, and a CloudFront Function maps `/client` onto `/client/index.html` at the edge — S3 has no directory index below the bucket root. Anything unresolved gets `404.html` with a real 404 status.
 
@@ -125,7 +125,7 @@ PORTFOLIO_CERTIFICATE_ARN=<us-east-1 ACM certificate ARN for portfolio.dev.morar
 Optional overrides:
 
 ```text
-PORTFOLIO_STACK_NAME=morara-dev-portfolio
+PORTFOLIO_STACK_NAME=kgwari-dev-portfolio
 S3_BUCKET=<bucket name>
 CLOUDFRONT_DISTRIBUTION_ID=<distribution id>
 ```
@@ -151,14 +151,14 @@ OIDC is preferred.
 
 ### Creating The GitHub Actions Role
 
-Create the deploy role once in the dev account (`072468084892`). This role is trusted only by the `EdwardSeshoka/morara-portfolio` GitHub repo and the `dev` GitHub environment.
+Create the deploy role once in the dev account (`072468084892`). This role is trusted only by the `EdwardSeshoka/kgwari-portfolio` GitHub repo and the `dev` GitHub environment.
 
 If the dev account does not already have the GitHub OIDC provider, run:
 
 ```sh
 aws cloudformation deploy \
   --region af-south-1 \
-  --stack-name morara-dev-portfolio-github-actions-role \
+  --stack-name kgwari-dev-portfolio-github-actions-role \
   --template-file infra/aws/github-actions-role.dev.yaml \
   --capabilities CAPABILITY_NAMED_IAM
 ```
@@ -168,7 +168,7 @@ If the GitHub OIDC provider already exists, reuse it instead:
 ```sh
 aws cloudformation deploy \
   --region af-south-1 \
-  --stack-name morara-dev-portfolio-github-actions-role \
+  --stack-name kgwari-dev-portfolio-github-actions-role \
   --template-file infra/aws/github-actions-role.dev.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides ExistingGitHubOidcProviderArn=arn:aws:iam::072468084892:oidc-provider/token.actions.githubusercontent.com
@@ -177,7 +177,7 @@ aws cloudformation deploy \
 After the stack completes, copy the `GitHubActionsRoleArn` output into the GitHub `dev` environment secret:
 
 ```text
-AWS_ROLE_TO_ASSUME=arn:aws:iam::072468084892:role/github-actions-morara-portfolio-dev
+AWS_ROLE_TO_ASSUME=arn:aws:iam::072468084892:role/github-actions-kgwari-portfolio-dev
 ```
 
 The role currently uses `AdministratorAccess` because the portfolio CDK deployment creates and updates CloudFront, S3, Route 53, ACM bindings, IAM-backed CDK assets, and CloudFormation resources. Once the deploy path is stable, this can be narrowed to a least-privilege managed policy.

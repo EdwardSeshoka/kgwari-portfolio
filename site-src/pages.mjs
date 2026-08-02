@@ -24,7 +24,7 @@ export const pages = [
     title: "Kgwari Client — C4 Architecture Diagrams",
     nav: "01 Client",
     where: "Kgwari Client",
-    what: "morara-frontend-app · Expo · React Native + Web",
+    what: "kgwari-frontend-app · Expo · React Native + Web",
   },
   {
     slug: "api",
@@ -32,15 +32,15 @@ export const pages = [
     title: "Kgwari API — C4 Architecture Diagrams",
     nav: "02 API",
     where: "Kgwari API",
-    what: "morara-backend-app · AWS CDK · Serverless",
+    what: "kgwari-backend-app · AWS CDK · Serverless",
   },
   {
     slug: "shared",
     file: "shared.html",
-    title: "Morara Shared — C4 Architecture Diagrams",
+    title: "Kgwari Shared — C4 Architecture Diagrams",
     nav: "03 Shared",
-    where: "Morara Shared",
-    what: "morara-shared · Changesets · GitHub Packages",
+    where: "Kgwari Shared",
+    what: "kgwari-shared · Changesets · GitHub Packages",
   },
 ];
 
