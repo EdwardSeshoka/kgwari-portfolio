@@ -1,0 +1,71 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari Search — Containers (the read path, the write path, and the engine)
+
+System_Ext(client, "Kgwari Client", "Expo app")
+
+System_Boundary(be, "kgwari-backend-app — kgwari-<env>") {
+
+  Container_Boundary(apistack, "api-stack — the read path") {
+    Container(apigw, "HTTP API Gateway", "API Gateway v2", "Public routes — search needs no JWT")
+    Container(searchL, "3 search Lambdas", "Node 20", "getSearch · getSearchSuggest · getSearchBrowse\nreads: search · readsSearchIndex: true\n**timeout 29s on serverless only** — to absorb\nthe collection's cold start")
+  }
+
+  Container_Boundary(datastack, "data-stack — the write path") {
+    ContainerDb(searchTable, "search table", "Amazon DynamoDB", "The store of record for the projection.\nThe engine index is derived from it,\nwhich is why the engine can be rebuilt.")
+    Container(projector, "projectSearchRows", "Lambda · ONE function, FOUR streams", "batchSize 10 · TRIM_HORIZON\nreportBatchItemFailures + bisect on error")
+    ContainerDb(sources, "4 streamed tables", "DynamoDB Streams · NEW_IMAGE", "wines · provenance · events · members\nEach record is self-describing through its\npartition key, so one handler can dispatch")
+  }
+
+  Container_Boundary(searchstack, "search-stack — its own stack, on purpose") {
+    Container(managed, "OpenSearch Domain", "L2 · managed", "beta: 1x t3.small.search\nproduction: 2 nodes across AZs\nBills from provisioning — no stop, no pause")
+    Container(serverless, "NextGen Collection", "L1 only · serverless", "In a min-0 collection group.\nScales to zero after ~10 min idle,\nthen 10-30s to wake.")
+  }
+
+  Container(bootstrap, "BootstrapSearchIndex", "Node script", "PUTs index-mapping.json to the cluster.\nStrips settings.index on serverless,\nwhich rejects shards and replicas.")
+  Container(backfill, "BackfillSearchProjection", "Node script", "Initial projection run over existing records —\nthe streams only carry what changes after them")
+}
+
+System_Ext(mapping, "infra/search/index-mapping.json", "icu_folding + icu_normalizer · digit char_filter\nquery-time synonyms · per-language prose analyzers\nNO stemming on names — Meerlust must stay Meerlust")
+
+Rel(client, apigw, "GET /search · /suggest · /browse", "HTTPS")
+Rel(apigw, searchL, "routes")
+Rel(searchL, searchTable, "Query", "when flavour is none")
+Rel(searchL, managed, "Search", "SigV4 · service name **es**")
+Rel(searchL, serverless, "Search", "SigV4 · service name **aoss**")
+Rel(sources, projector, "Invokes on change")
+Rel(projector, searchTable, "Writes rows", "write grant only — everything it\nreads arrives in the stream record")
+Rel(backfill, searchTable, "Seeds existing records")
+Rel(bootstrap, mapping, "Reads")
+Rel(bootstrap, managed, "PUT _index", "REST")
+Rel(bootstrap, serverless, "PUT _index", "REST")
+
+note bottom of searchstack
+  **Why two flavours, and what actually decided it.**
+  Not capability — Serverless has ICU folding too, and
+  NextGen has no OCU floor. It was **who is waiting**:
+  dev and uat are idle most of the day and nobody waits
+  on them, so a cold start costs nothing. A member typing
+  in the search box must not wait ten seconds.
+
+  `EnvironmentConfiguration.search.flavour` picks one, so
+  moving an environment either way is a one-line change.
+end note
+
+note right of searchstack
+  **SearchEngineBinding carries data, not a callback.**
+  An earlier version exposed `grantRead(grantee)`, which
+  made the search stack reach back into the api stack for
+  Lambda role ARNs — and CloudFormation rejected the whole
+  app as a cyclic reference. A grant belongs where the
+  *grantee* is.
+end note
+
+@enduml

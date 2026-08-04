@@ -18,6 +18,8 @@
         <a href="/client">01 Client</a>
         <a href="/api">02 API</a>
         <a href="/shared" aria-current="page">03 Shared</a>
+        <a href="/search">04 Search</a>
+        <a href="/localization">05 Localization</a>
       </nav>
     </div>
   </header>
@@ -27,15 +29,14 @@
     <div class="project-header">
       <div class="project-number">03</div>
       <div>
-        <h2 class="project-title">Morara Shared<small>morara-shared · TypeScript · Changesets · GitHub Packages</small></h2>
+        <h2 class="project-title">Kgwari Shared<small>kgwari-shared · TypeScript · Changesets · GitHub Packages</small></h2>
       </div>
       <div class="stack">
         <span class="tag">npm workspaces</span>
         <span class="tag">Changesets</span>
         <span class="tag">GitHub Packages</span>
         <span class="tag">SemVer</span>
-        <span class="tag">capabilities</span>
-        <span class="tag">adapters</span>
+        <span class="tag">contracts ×17 domains</span>
       </div>
     </div>
 
@@ -44,7 +45,7 @@
         <h3><span class="kind">3A — Context</span>An internal package registry</h3>
         <p class="diagram-caption">Not a runtime system — a versioned contract surface published to GitHub Packages and consumed by both application repositories at build time.</p>
       </div>
-      <div class="diagram-frame"><img src="/assets/diagrams/sh-context.svg" alt="sh-context diagram" width="745" height="1197" fetchpriority="high"></div>
+      <div class="diagram-frame"><img src="/assets/diagrams/sh-context.svg" alt="sh-context diagram" width="745" height="1214" fetchpriority="high"></div>
       <details class="source"><summary>PlantUML source</summary><pre>@startuml
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
 
@@ -54,18 +55,18 @@ skinparam backgroundColor #FFFFFF
 skinparam defaultFontName "Inter"
 skinparam shadowing false
 
-title morara-shared — System Context
+title kgwari-shared — System Context
 
 Person(maintainer, "Maintainer", "Authors changesets · merges the Version Packages PR")
 Person_Ext(consumerDev, "Consumer Developer", "Frontend / backend engineer")
 
-System(shared, "morara-shared", "Private TypeScript monorepo\nSix packages under @edwardseshoka:\ncontracts · foundation · samples · places\nphone-number-validation · google-places-adapter")
+System(shared, "kgwari-shared", "Private TypeScript monorepo\nThree packages under @edwardseshoka:\ncontracts · foundation · samples\nThe places capability and its Google adapter\nwere removed — nothing consumed them")
 
-System_Ext(fe, "morara-frontend-app", "Consumes contracts · foundation · samples · capabilities")
-System_Ext(be, "morara-backend-app", "Consumes contracts · foundation · samples · adapters")
+System_Ext(fe, "kgwari-frontend-app", "Consumes contracts · foundation · samples")
+System_Ext(be, "kgwari-backend-app", "Consumes contracts · foundation · samples")
 System_Ext(ghpkg, "GitHub Packages", "Private npm registry under the @edwardseshoka scope")
 System_Ext(gha, "GitHub Actions", "Changesets release workflow")
-System_Ext(docs, "kwari-docs", "Package layering doc — the rule the dependency direction follows")
+System_Ext(docs, "kgwari-docs", "Package layering doc — the rule the dependency direction follows")
 
 Rel(maintainer, shared, "Commits + changesets")
 Rel(shared, gha, "PR validation &amp; release workflows", "on push / merge")
@@ -81,10 +82,10 @@ Rel_U(docs, shared, "Governs layering", "review-time")
 
     <div class="diagram">
       <div class="diagram-head">
-        <h3><span class="kind">3B — Container</span>Six packages, three kinds</h3>
-        <p class="diagram-caption">Contracts and foundation are the wire and the abstractions; samples is the shared content pool; capabilities and adapters are the newer split — a provider-agnostic domain, and one adapter per external SDK.</p>
+        <h3><span class="kind">3B — Container</span>Three packages, and the two that left</h3>
+        <p class="diagram-caption">Contracts and foundation are the wire and the abstractions; samples is the shared content pool. The <code class="inline">capabilities</code> and <code class="inline">adapters</code> pair shown at the last revision is gone — the places domain and its Google adapter were removed once nothing consumed them, and neither application repository names them today.</p>
       </div>
-      <div class="diagram-frame"><img src="/assets/diagrams/sh-container.svg" alt="sh-container diagram" width="1820" height="994" loading="lazy" decoding="async"></div>
+      <div class="diagram-frame"><img src="/assets/diagrams/sh-container.svg" alt="sh-container diagram" width="1001" height="1030" loading="lazy" decoding="async"></div>
       <details class="source"><summary>PlantUML source</summary><pre>@startuml
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 
@@ -94,37 +95,36 @@ skinparam backgroundColor #FFFFFF
 skinparam defaultFontName "Inter"
 skinparam shadowing false
 
-title morara-shared — Containers (six independently versioned packages)
+title kgwari-shared — Containers (three independently versioned packages)
 
-System_Boundary(shared, "morara-shared (npm workspaces)") {
+System_Boundary(shared, "kgwari-shared (npm workspaces)") {
 
-  Container(foundation, "@edwardseshoka/foundation", "v3.1.0 · zero deps", "Result&lt;T,E&gt; · UseCase / NoInputUseCase\nMapper&lt;TIn,TOut&gt; · Validator\nEmail &amp; verification-code validation")
+  Container(foundation, "@edwardseshoka/foundation", "v3.3.0 · zero deps", "Result&lt;T,E&gt; · UseCase / NoInputUseCase\nMapper&lt;TIn,TOut&gt; · Validator\nparseMoneyAmount — no floating point, no Intl,\nso the server re-validates with the client's parser")
 
-  Container(contracts, "@edwardseshoka/contracts", "v4.1.0", "Wire DTOs for eight domains:\ncatalog · discover · editorial · events\nmember · provenance · social · trust")
+  Container(contracts, "@edwardseshoka/contracts", "v10.0.0", "Wire DTOs for seventeen domains:\ncatalog · cellar · collections · contributions\ndiscover · editorial · events · lenses · media\nmember · money · provenance · search · social\ntext · trust · vocabulary")
 
-  Container(samples, "@edwardseshoka/samples", "v7.0.4", "Endpoint-shaped sample content per feature:\ncatalog · discover · editorial\nevents · provenance · social")
-
-  Container_Boundary(caps, "packages/capabilities — provider-agnostic domains") {
-    Container(places, "@edwardseshoka/places", "v0.2.3", "Places domain + Kgwari API data access")
-    Container(phone, "@edwardseshoka/phone-number-validation", "v0.1.1", "libphonenumber-js · PhoneCountry")
-  }
-
-  Container_Boundary(adapters, "packages/adapters — one per external SDK") {
-    Container(gplaces, "@edwardseshoka/google-places-adapter", "v0.1.4", "Google Places provider behind the places domain")
-  }
+  Container(samples, "@edwardseshoka/samples", "v14.0.0", "Endpoint-shaped sample content per feature —\nthe corpus both apps develop against")
 
   Container(cs, "Changesets", "Tooling", "Per-PR semver intent")
   Container(release, "release workflow", "GitHub Actions", "Builds -&gt; publishes only what changed")
 }
 
+note right of contracts
+  **Six new top-level domains since the last revision**,
+  and two of them exist because a concept escaped the
+  feature that discovered it. `money` moved out of
+  `catalog` and `text` out of `search` — each the moment
+  a second feature needed the same shape. Leaving them
+  where they were born is how every other feature ends
+  up declaring its own.
+end note
+
 System_Ext(ghpkg, "GitHub Packages", "@edwardseshoka scope")
-System_Ext(fe, "morara-frontend-app")
-System_Ext(be, "morara-backend-app")
+System_Ext(fe, "kgwari-frontend-app")
+System_Ext(be, "kgwari-backend-app")
 
 Rel(samples, contracts, "depends on", "workspace:*")
-Rel(places, foundation, "depends on", "workspace:*")
-Rel(gplaces, places, "implements the port of", "workspace:*")
-Rel(gplaces, foundation, "depends on", "workspace:*")
+Rel(contracts, foundation, "depends on", "workspace:*")
 Rel(cs, shared, "tracks bumps per package")
 Rel(release, cs, "Applies versions via")
 Rel(release, ghpkg, "Publishes changed packages")
@@ -136,10 +136,10 @@ Rel_Back(ghpkg, be, "Installs")
 
     <div class="diagram">
       <div class="diagram-head">
-        <h3><span class="kind">3C — Component</span>The <code class="inline">places</code> capability and its Google adapter</h3>
-        <p class="diagram-caption">The clearest example of the layering rule: the capability owns the entities, use cases and port; the adapter is the only package that has ever heard of Google. Neither the port nor the entities take a provider argument.</p>
+        <h3><span class="kind">3C — Component</span>What a wire may not carry: <code class="inline">text</code> and <code class="inline">money</code></h3>
+        <p class="diagram-caption">Two modules that exist because a concept escaped the feature that discovered it. Both encode the same rule from opposite directions: the server never sends a composed sentence, a formatted number or a formatted date. A display field is one of three declared sources, and an amount is integer minor units plus a currency code — never a symbol, never a float.</p>
       </div>
-      <div class="diagram-frame"><img src="/assets/diagrams/sh-component.svg" alt="sh-component diagram" width="1644" height="1130" loading="lazy" decoding="async"></div>
+      <div class="diagram-frame"><img src="/assets/diagrams/sh-component.svg" alt="sh-component diagram" width="2157" height="1386" loading="lazy" decoding="async"></div>
       <details class="source"><summary>PlantUML source</summary><pre>@startuml
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
 
@@ -149,44 +149,61 @@ skinparam backgroundColor #FFFFFF
 skinparam defaultFontName "Inter"
 skinparam shadowing false
 
-title morara-shared — Component view of the places capability and its Google adapter
+title kgwari-shared — Component view of `contracts/text` and `contracts/money`: what a wire may not carry
 
-Container_Boundary(places, "@edwardseshoka/places — the capability") {
-  Component(pDomain, "Domain / Entities", "TS", "Place · PlaceSuggestion — provider-neutral")
-  Component(pUseCases, "Domain / UseCases", "TS", "PlaceUseCases — search, resolve")
-  Component(pPort, "Domain / Contracts", "Interfaces", "PlacesRepository · PlacesQueries\nNo provider argument anywhere in the signature")
-  Component(pData, "Data / Repositories + Services", "TS", "PlacesDataRepository over PlacesService (Kgwari API)")
-  Component(pMappers, "Data / Mappers", "TS", "DTO &lt;-&gt; Entity, one class per direction")
-  Component(pDoubles, "TestDoubles", "TS", "PlacesHTTPClientSpy · PlacesServiceStub\nmakePlace / makePlaceSuggestion")
+Container_Boundary(text, "@edwardseshoka/contracts/text — three sources, never a bare string") {
+  Component(canonical, "CanonicalText", "{ source, text }", "A proper noun, identical everywhere —\n'Meerlust Estate', 'Rubicon', a certificate number.\nNobody renders it; nothing translates it.\n**Must never be stemmed by the index.**")
+  Component(chrome, "ChromeText", "{ source, key }", "A closed enum — a verdict, a member status,\na business persona. The server sends the KEY\nand never the word, so it reads in every locale\nwith no translation pipeline at all.")
+  Component(negotiated, "NegotiatedText", "{ source, text, languageTag }", "Server-localised content — an exonym, a title.\nThe languageTag is what makes a FALLBACK VISIBLE:\nwithout it a French member reading English\ncannot be told that it fell back.")
+  Component(union, "LocalizedText", "Discriminated union", "The three, and nothing else.\nA display field typed as `string` is the bug\nthis type exists to make unspellable.")
+  Component(measurement, "Measurement · YearRange", "TS", "Value plus unit, never a formatted quantity")
 }
 
-Container_Boundary(gplaces, "@edwardseshoka/google-places-adapter — one SDK, one adapter") {
-  Component(gRepo, "GooglePlacesRepository", "Adapter", "Implements PlacesRepository")
-  Component(gClient, "GooglePlacesClient", "SDK client", "The only file that knows Google's wire shape")
-  Component(gMappers, "Google entity mappers", "TS", "GooglePlace(Suggestion)EntityMapper")
-  Component(gErrors, "GooglePlacesError", "TS", "Provider failures translated at the boundary")
+Container_Boundary(money, "@edwardseshoka/contracts/money — the third axis") {
+  Component(moneyC, "MoneyContract", "{ amountMinorUnits, currency }", "Integer minor units — 89500, not 895.\nThe field was once `amount: number` meaning rands\nwhile the formatter expected cents, and R895\nrendered as R8,95")
+  Component(currency, "CurrencyCode", "Closed union", "ZAR · EUR · GBP · CHF · CAD · USD\n**No symbol field** — CAD is '$' in Canada\nand 'CA$' elsewhere; a stored symbol\ndestroys that disambiguation")
+  Component(priceKind, "PriceKind", "listed | paid | valuation", "Three concepts that must never share a field.\nA field called `price` invites all three, after\nwhich a distributor's change silently rewrites\nwhat a member remembers paying")
+  Component(transacted, "TransactedMoneyContract", "MoneyContract + asOf", "Pins a historical amount in time")
 }
 
-Container_Ext(foundation, "@edwardseshoka/foundation", "Result · Mapper · UseCase")
-Container_Ext(be, "morara-backend-app", "Composition root picks the adapter")
-Container_Ext(fe, "morara-frontend-app", "Composition root picks the API-backed data repository")
+Container_Boundary(foundation, "@edwardseshoka/foundation — the only dependency contracts has") {
+  Component(parse, "parseMoneyAmount / toEditableAmount", "Pure fns", "Members type '895,50'; the contract stores 89500.\n**No floating point** — parseFloat('19.99') * 100\nis 1998.9999999999998. **No Intl**, so it imports\ninto domain and backend code alike, and the server\nre-validates with the same function that parsed")
+  Component(result, "Result&lt;T, E&gt; · UseCase · Mapper", "TS", "The vocabulary both apps' layers are built from")
+}
 
-Rel(pUseCases, pPort, "Depends on")
-Rel(pUseCases, pDomain, "Operates on")
-Rel(pData, pPort, "Implements")
-Rel(pData, pMappers, "Maps with")
-Rel(pMappers, foundation, "implements Mapper&lt;,&gt;")
-Rel(pUseCases, foundation, "returns Result&lt;T,E&gt;")
-Rel(pDoubles, pPort, "Stub the same port")
+System_Ext(features, "search · catalog · cellar · …", "Every feature that renders text or money")
+System_Ext(clientEdge, "The presentation edge", "Where, and only where, a string is composed,\na number grouped and a date formatted")
 
-Rel(gRepo, pPort, "Implements the same port")
-Rel(gRepo, gClient, "Calls")
-Rel(gRepo, gMappers, "Maps with")
-Rel(gClient, gErrors, "Fails with")
-Rel(gMappers, pDomain, "Produces the neutral entities")
+Rel(canonical, union, "member of")
+Rel(chrome, union, "member of")
+Rel(negotiated, union, "member of")
+Rel(features, union, "Every display field is typed as")
+Rel(features, moneyC, "Every amount is typed as")
+Rel(moneyC, currency, "Scale derived from, never stored")
+Rel(moneyC, priceKind, "Disambiguated by")
+Rel(transacted, moneyC, "extends")
+Rel(moneyC, parse, "Round-trips through")
+Rel(union, clientEdge, "Rendered by")
+Rel(moneyC, clientEdge, "Formatted by")
+Rel(measurement, clientEdge, "Formatted by")
+Rel(features, result, "Built from")
 
-Rel(be, gRepo, "Wires at composition", "provider chosen once, at the root")
-Rel(fe, pData, "Wires at composition")
+note bottom of text
+  **These types were introduced for search, and were never
+  a search concept.** The moment a wine record carries
+  ninety fields, a register of tasting words and an estate's
+  own essay, the same three-way distinction governs all of
+  them — so they moved out of `search`, the way `money`
+  moved out of `catalog`. Left where it was born, every
+  other feature declares its own.
+
+  The rule underneath all of it: **the server never sends a
+  composed sentence, a formatted number or a formatted
+  date.** A server that sends "214 readings" has hardcoded
+  English plural rules; one that sends "14.21 %" has
+  hardcoded a decimal separator that is a comma across most
+  of Europe.
+end note
 
 @enduml</pre></details>
     </div>
@@ -194,7 +211,8 @@ Rel(fe, pData, "Wires at composition")
     <div class="summary">
       <div class="label">Technical Summary</div>
       <div>
-        <p>A private monorepo of six independently versioned packages under the <code>@edwardseshoka</code> scope: <em>foundation</em> (Result, UseCase, Mapper, validators — zero dependencies), <em>contracts</em> (wire DTOs for eight domains including the shared trust vocabulary), <em>samples</em> (endpoint-shaped sample content per feature), and the <em>capabilities</em> and <em>adapters</em> pair, where a provider-agnostic domain is published separately from the one adapter per external SDK that satisfies it.</p>
+        <p>A private monorepo of three independently versioned packages under the <code>@edwardseshoka</code> scope: <em>foundation</em> (Result, UseCase, Mapper, validators and the money parser — zero dependencies), <em>contracts</em> (wire DTOs across seventeen domains, depending only on foundation), and <em>samples</em> (endpoint-shaped sample content per feature). It has shrunk since the last revision rather than grown: the capabilities and adapters split was removed when the places domain stopped being consumed, which is the healthier outcome for a shared package — an unused published dependency is a version everyone still has to resolve.</p>
+        <p>What grew instead is <code>contracts</code>, and the interesting part is where the growth came from. Two of the newest top-level domains exist because a concept outgrew the feature that invented it: <code>money</code> moved out of <code>catalog</code> and <code>text</code> out of <code>search</code>, each at the moment a second feature needed the same shape. Left where they were born, every other feature declares its own — which is exactly the drift the published boundary exists to prevent.</p>
         <p>Versioning is driven by Changesets, so every pull request that touches a published package declares its own semver bump, and merging the generated “Version Packages” pull request publishes only what actually changed. The samples package earns its keep twice over: the backend seeds its dev tables from it and the frontend builds its App Doubles from it, which is what keeps local development from quietly disagreeing with the deployed system.</p>
       </div>
     </div>
@@ -205,6 +223,11 @@ Rel(fe, pData, "Wires at composition")
         <div class="dir">Previous</div>
         <div class="where">Kgwari API</div>
         <div class="what">kgwari-backend-app · AWS CDK · Serverless</div>
+      </a>
+      <a class="next" href="/search">
+        <div class="dir">Next</div>
+        <div class="where">Kgwari Search</div>
+        <div class="what">One ledger · DynamoDB projection · Amazon OpenSearch</div>
       </a>
   </nav>
 

@@ -2,15 +2,14 @@
     <div class="project-header">
       <div class="project-number">03</div>
       <div>
-        <h2 class="project-title">Morara Shared<small>morara-shared · TypeScript · Changesets · GitHub Packages</small></h2>
+        <h2 class="project-title">Kgwari Shared<small>kgwari-shared · TypeScript · Changesets · GitHub Packages</small></h2>
       </div>
       <div class="stack">
         <span class="tag">npm workspaces</span>
         <span class="tag">Changesets</span>
         <span class="tag">GitHub Packages</span>
         <span class="tag">SemVer</span>
-        <span class="tag">capabilities</span>
-        <span class="tag">adapters</span>
+        <span class="tag">contracts ×17 domains</span>
       </div>
     </div>
 
@@ -25,8 +24,8 @@
 
     <div class="diagram">
       <div class="diagram-head">
-        <h3><span class="kind">3B — Container</span>Six packages, three kinds</h3>
-        <p class="diagram-caption">Contracts and foundation are the wire and the abstractions; samples is the shared content pool; capabilities and adapters are the newer split — a provider-agnostic domain, and one adapter per external SDK.</p>
+        <h3><span class="kind">3B — Container</span>Three packages, and the two that left</h3>
+        <p class="diagram-caption">Contracts and foundation are the wire and the abstractions; samples is the shared content pool. The <code class="inline">capabilities</code> and <code class="inline">adapters</code> pair shown at the last revision is gone — the places domain and its Google adapter were removed once nothing consumed them, and neither application repository names them today.</p>
       </div>
       <div class="diagram-frame" data-puml-id="sh-container"></div>
       <details class="source"><summary>PlantUML source</summary><pre data-puml-source="sh-container"></pre></details>
@@ -34,8 +33,8 @@
 
     <div class="diagram">
       <div class="diagram-head">
-        <h3><span class="kind">3C — Component</span>The <code class="inline">places</code> capability and its Google adapter</h3>
-        <p class="diagram-caption">The clearest example of the layering rule: the capability owns the entities, use cases and port; the adapter is the only package that has ever heard of Google. Neither the port nor the entities take a provider argument.</p>
+        <h3><span class="kind">3C — Component</span>What a wire may not carry: <code class="inline">text</code> and <code class="inline">money</code></h3>
+        <p class="diagram-caption">Two modules that exist because a concept escaped the feature that discovered it. Both encode the same rule from opposite directions: the server never sends a composed sentence, a formatted number or a formatted date. A display field is one of three declared sources, and an amount is integer minor units plus a currency code — never a symbol, never a float.</p>
       </div>
       <div class="diagram-frame" data-puml-id="sh-component"></div>
       <details class="source"><summary>PlantUML source</summary><pre data-puml-source="sh-component"></pre></details>
@@ -44,7 +43,8 @@
     <div class="summary">
       <div class="label">Technical Summary</div>
       <div>
-        <p>A private monorepo of six independently versioned packages under the <code>@edwardseshoka</code> scope: <em>foundation</em> (Result, UseCase, Mapper, validators — zero dependencies), <em>contracts</em> (wire DTOs for eight domains including the shared trust vocabulary), <em>samples</em> (endpoint-shaped sample content per feature), and the <em>capabilities</em> and <em>adapters</em> pair, where a provider-agnostic domain is published separately from the one adapter per external SDK that satisfies it.</p>
+        <p>A private monorepo of three independently versioned packages under the <code>@edwardseshoka</code> scope: <em>foundation</em> (Result, UseCase, Mapper, validators and the money parser — zero dependencies), <em>contracts</em> (wire DTOs across seventeen domains, depending only on foundation), and <em>samples</em> (endpoint-shaped sample content per feature). It has shrunk since the last revision rather than grown: the capabilities and adapters split was removed when the places domain stopped being consumed, which is the healthier outcome for a shared package — an unused published dependency is a version everyone still has to resolve.</p>
+        <p>What grew instead is <code>contracts</code>, and the interesting part is where the growth came from. Two of the newest top-level domains exist because a concept outgrew the feature that invented it: <code>money</code> moved out of <code>catalog</code> and <code>text</code> out of <code>search</code>, each at the moment a second feature needed the same shape. Left where they were born, every other feature declares its own — which is exactly the drift the published boundary exists to prevent.</p>
         <p>Versioning is driven by Changesets, so every pull request that touches a published package declares its own semver bump, and merging the generated “Version Packages” pull request publishes only what actually changed. The samples package earns its keep twice over: the backend seeds its dev tables from it and the frontend builds its App Doubles from it, which is what keeps local development from quietly disagreeing with the deployed system.</p>
       </div>
     </div>

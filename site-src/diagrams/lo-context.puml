@@ -1,0 +1,55 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari Localization — System Context (three kinds of text, three different answers)
+
+Person(member, "Member", "Reads the app in one of six languages.\nWrites tasting notes in their own.")
+Person_Ext(reviewer, "Native-speaker reviewer", "Gates a locale from draft to reviewed.\nNothing reaches a member before this.")
+
+System_Boundary(tiers, "Three content tiers — never solve one with the other's tools") {
+  System(chrome, "Tier 1 — Chrome", "Everything the app itself says.\n7 locales x 9 namespaces of i18next JSON.\n**A finite catalogue.**")
+  System(curated, "Tier 2 — Curated", "Editorial and catalogue writing:\nwine descriptions, region write-ups.\n**Human translation, no machine.**")
+  System(ugc, "Tier 3 — Free UGC", "Members' own words. Stored original\n+ language tag, permanently.\n**Unbounded member text.**")
+}
+
+System_Ext(bedrock, "Amazon Bedrock", "Build time, in the frontend repo.\nGlossary-aware, few-shot, gap-fill only —\nan existing string is never overwritten")
+System_Ext(translate, "Amazon Translate", "Runtime, behind the API.\nOn-demand 'See translation', cached by\n(contentId, contentHash, targetLang)")
+
+System(client, "Kgwari Client", "@shared/localization — the ONLY package\nother layers import for i18n")
+
+Rel(member, client, "Reads chrome in", "negotiated UI language")
+Rel(chrome, bedrock, "First-pass MT by")
+Rel(bedrock, reviewer, "Produces drafts for")
+Rel(reviewer, chrome, "Promotes to reviewed")
+Rel(ugc, translate, "Translated on demand by")
+Rel(member, ugc, "Writes")
+Rel(client, chrome, "Renders from")
+Rel(curated, client, "Negotiated per request", "Accept-Language / Content-Language")
+
+note bottom of bedrock
+  **Two services, and the split is not arbitrary.**
+  Chrome is a finite catalogue where an LLM with the
+  project glossary beats generic NMT and runs once per
+  string, so per-token pricing is noise. UGC is unbounded
+  text where per-character pricing, a distinct fr-CA model
+  and per-request formality matter — and where quality is
+  answered by the affordance itself: original by default,
+  machine attribution, toggle back.
+
+  Neither replaces the other. Neither touches tier 2.
+end note
+
+note right of ugc
+  **Invariant:** the original plus its language tag is
+  permanent and always presentable. A translation is a
+  derived, cached, optional overlay — never a replacement,
+  and never the searchable canonical.
+end note
+
+@enduml

@@ -1,0 +1,69 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari Localization — Component view: three independent axes, resolved once
+
+Component(device, "Device", "expo-localization / navigator", "Ordered preferred languages + region")
+
+Container_Boundary(resolution, "Resolution — runs once, at the edge") {
+  Component(override, "LocaleOverride", "Persisted slot", "Supersedes system detection.\n'System default' must stay reachable")
+  Component(negotiate, "negotiateUiLanguage", "Pure fn", "Ordered preferences INTERSECT served\ncatalogues, else `en`")
+  Component(resolved, "ResolvedLocale", "Value object", "uiLanguage · formattingLocale · region\nnumberingSystem · measurementSystem")
+}
+
+Container_Boundary(axes, "The three axes — genuinely independent") {
+  Component(axis1, "1 · UI language", "Which catalogue renders", "Negotiated. Collapses to base language\nONLY when picking a catalogue")
+  Component(axis2, "2 · Region / formatting", "Grouping, dates, separators", "From the device region —\nindependent of UI language")
+  Component(axis3, "3 · Commerce currency", "What the wine is priced in", "From **the data**, never the locale.\nA Bordeaux stays EUR in Zurich")
+}
+
+Container_Boundary(pres, "-presentation — the only layer that localises") {
+  Component(useStrings, "useLocalizedStrings(ns)", "Hook", "Every user-visible string is a key.\nZero literals — enforced by lint")
+  Component(useFmt, "useFormatters()", "Hook", "Every number, date and money value.\nNever a raw Intl at a call site")
+  Component(money, "formatCurrency(minorUnits, code)", "Fn", "Impossible to call without the\nitem's own currency code")
+}
+
+Container_Boundary(lower, "-domain and -data — locale-agnostic by lint rule") {
+  Component(entities, "Entities", "TS", "Minor units + ISO 4217 · UTC ISO 8601.\nNo formatted strings, ever")
+  Component(ugcEntity, "UGC + language tag", "TS", "{ body, language } — the original is\npermanent and always presentable")
+  Component(translatePort, "translate(contentId, targetLang)", "Repository method", "Data-layer I/O. May TAKE a locale;\nmay not FORMAT with one")
+}
+
+System_Ext(parse, "parseMoneyAmount", "@edwardseshoka/foundation", "Major -> minor units with no floating point\nand no Intl, so the server re-validates with\nthe same function the client parsed with")
+
+Rel(device, negotiate, "Ordered preferences")
+Rel(override, negotiate, "Supersedes")
+Rel(negotiate, resolved, "Produces")
+Rel(resolved, axis1, "uiLanguage")
+Rel(resolved, axis2, "formattingLocale")
+Rel(axis1, useStrings, "Selects catalogue")
+Rel(axis2, useFmt, "Binds every formatter")
+Rel(axis3, money, "Supplies the currency code")
+Rel(entities, axis3, "Carry the currency")
+Rel(useFmt, money, "Exposes")
+Rel(entities, useFmt, "Formatted only here")
+Rel(ugcEntity, translatePort, "Translated on demand through")
+Rel(money, parse, "Round-trips with")
+
+note bottom of axes
+  **Conflating axes 2 and 3 is the classic bug.**
+  English UI + German formatting + EUR pricing is a
+  valid, common combination. Modelling them as one
+  field makes it inexpressible and breeds the
+  currency-relabel bug — EUR50 silently becoming $50.
+end note
+
+note right of lower
+  The value of "domain and data are locale-agnostic"
+  collapses the moment one `t()` leaks into a use case.
+  A lint rule is the only durable guarantee, which is
+  why it is one of four rather than a convention.
+end note
+
+@enduml

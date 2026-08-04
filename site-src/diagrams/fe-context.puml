@@ -13,12 +13,13 @@ Person(member, "Member", "Discovers, searches, cellars and reviews wine.\nStatus
 Person_Ext(verified, "Verified Account", "Professional · producer · distributor.\nTrust mark earned at business onboarding.")
 Person_Ext(reviewer, "Designer / Reviewer", "Walks deterministic offline flows via App Doubles.")
 
-System(frontend, "Kgwari Client", "morara-frontend-app — universal Expo app (web, iOS, Android).\nBuildFlavor x AppEnvironment runtime split.")
+System(frontend, "Kgwari Client", "kgwari-frontend-app — universal Expo app (web, iOS, Android).\nBuildFlavor x AppEnvironment runtime split.")
 
 System_Ext(backend, "Kgwari API", "HTTPS / JSON over API Gateway")
 System_Ext(cognito, "Amazon Cognito", "Passkey-first sign-in, OTP fallback, JWT issuance")
-System_Ext(cdn, "CloudFront + S3", "Static web hosting (dev / beta / production)")
-System_Ext(ghpkg, "GitHub Packages", "@edwardseshoka contracts · foundation · samples · places · phone-number-validation")
+System_Ext(cdn, "CloudFront + S3", "Static web hosting (dev / uat / beta / production)")
+System_Ext(bedrock, "Amazon Bedrock", "Build time only — fills draft locale catalogues\nfor a native speaker to review")
+System_Ext(ghpkg, "GitHub Packages", "@edwardseshoka contracts · foundation · samples")
 
 Rel(member, frontend, "Uses", "HTTPS")
 Rel(verified, frontend, "Claims records · publishes verdicts", "HTTPS")
@@ -27,5 +28,6 @@ Rel(frontend, cdn, "Loaded from", "HTTPS")
 Rel(frontend, backend, "Calls REST API", "HTTPS / JSON")
 Rel(frontend, cognito, "Passkey registration & assertion, OTP fallback", "JWT")
 Rel_Back(frontend, ghpkg, "Resolves at build time", "npm install")
+Rel(frontend, bedrock, "Generates draft catalogues", "pnpm i18n:translate")
 
 @enduml

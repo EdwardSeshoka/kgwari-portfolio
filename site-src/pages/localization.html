@@ -1,0 +1,57 @@
+  <section class="project" id="localization">
+    <div class="project-header">
+      <div class="project-number">05</div>
+      <div>
+        <h2 class="project-title">Kgwari Localization<small>Seven tags, six languages, three content tiers, three different answers</small></h2>
+      </div>
+      <div class="stack">
+        <span class="tag">i18next</span>
+        <span class="tag">FormatJS polyfill-force</span>
+        <span class="tag">Amazon Bedrock</span>
+        <span class="tag">Amazon Translate</span>
+        <span class="tag">7 locales × 9 namespaces</span>
+        <span class="tag">4 lint guardrails</span>
+      </div>
+    </div>
+
+    <p class="note">
+      The second capability page. Localization spans <code>@shared/localization</code> and seven catalogues in the client, two build scripts, the text and money contracts in <code>kgwari-shared</code>, and two client packages on the backend — so like search, it has no single repository to belong to.
+    </p>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">5A — Context</span>Three kinds of text, and why one pipeline cannot carry them</h3>
+        <p class="diagram-caption">Chrome is what the app itself says; curated is the editorial and catalogue writing; free UGC is members' own words. They are authored by different people, translated by different people, on different tracks and at different cost — so each gets a different machine, or none. Conflating them is how a translation budget disappears into text nobody reads.</p>
+      </div>
+      <div class="diagram-frame" data-puml-id="lo-context"></div>
+      <details class="source"><summary>PlantUML source</summary><pre data-puml-source="lo-context"></pre></details>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">5B — Container</span>One source catalogue, six generated from it, none served unread</h3>
+        <p class="diagram-caption"><code class="inline">en</code> is the only hand-authored catalogue. The rest are gap-filled by a glossary-aware model that never overwrites an existing string — which is what makes it safe to re-run after a reviewer has been through a locale, since their corrections are simply keys that are no longer missing. A provenance sidecar records which keys are still machine-written, so a reviewer knows what to read.</p>
+      </div>
+      <div class="diagram-frame" data-puml-id="lo-container"></div>
+      <details class="source"><summary>PlantUML source</summary><pre data-puml-source="lo-container"></pre></details>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">5C — Component</span>Three independent axes, resolved once at the edge</h3>
+        <p class="diagram-caption">UI language, formatting region and commerce currency are genuinely independent — English UI with German formatting and EUR pricing is a valid, common combination. Modelling them as one setting makes that inexpressible and breeds the currency-relabel bug. Domain and data layers stay locale-agnostic, and that boundary is a lint rule rather than a convention because its value collapses the moment one <code class="inline">t()</code> leaks into a use case.</p>
+      </div>
+      <div class="diagram-frame" data-puml-id="lo-component"></div>
+      <details class="source"><summary>PlantUML source</summary><pre data-puml-source="lo-component"></pre></details>
+    </div>
+
+    <div class="summary">
+      <div class="label">Technical Summary</div>
+      <div>
+        <p>The launch set is seven BCP 47 tags across six languages — <code>en</code>, <code>af</code>, <code>fr-FR</code>, <code>fr-CA</code>, <code>de</code>, <code>it</code>, <code>es</code> — and the interesting part of the registry is that it separates two questions most systems conflate. <code>status</code> gates negotiation: what a device is silently placed onto without anyone choosing it. <code>offerInPicker</code> gates the picker: what a member may deliberately select. Landing on a half-filled Afrikaans catalogue because your phone is set to Afrikaans is a broken app you did not ask for; choosing it from the footer and finding English where the catalogue is thin is a different transaction, and an acceptable one while review is pending. Today <code>en</code> is the base and all six others are draft — generated, awaiting a native speaker.</p>
+        <p>Two machine services do work here and they are not interchangeable. Chrome is a finite catalogue, so an LLM with the project glossary and few-shot examples beats generic neural translation and runs once per string, making per-token pricing noise; it runs at build time in the frontend repo. User-generated text is unbounded, so per-character pricing, a distinct Québécois model and per-request formality all matter; it runs at request time behind the API. Neither touches curated content, which stays human. The same Bedrock service also parses wine labels on the backend — a shared service, not a shared concern.</p>
+        <p>Formatting is polyfilled rather than delegated. On Hermes the app's JavaScript has no <code>Intl</code> data of its own and falls through to the operating system, so the same <code>Intl.NumberFormat</code> call can produce different output on iOS, Android and web, or throw on a stripped Android build — non-determinism that cannot be caught in tests because it depends on the member's device. Forcing the polyfill costs bundle size and buys identical output everywhere, which is the right trade for a product whose premise is correctness in many languages.</p>
+        <p>Money is the axis most likely to go wrong, and it is handled in the contracts rather than in the views: integer minor units, scale derived from the currency code and never stored, and no symbol field — because <code>CAD</code> renders as <code>$</code> in Canada and <code>CA$</code> elsewhere, and a stored symbol throws that disambiguation away. Members type major units, so a single tested parser converts without floating point and without <code>Intl</code>, which lets the server re-validate a submitted amount with the very function that parsed it on the client.</p>
+      </div>
+    </div>
+  </section>

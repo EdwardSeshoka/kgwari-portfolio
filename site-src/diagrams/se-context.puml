@@ -1,0 +1,49 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari Search — System Context (one ledger, five kinds, one row shape)
+
+Person(member, "Member", "Types a query. Gets wines, estates, regions,\ntastings and people in one ranked list.")
+
+System_Boundary(search, "Search — a projection, not a fan-out") {
+  System(client, "Kgwari Client", "Sends NFC-normalised query text\nand Accept-Language. Renders every\ndisplayable string itself.")
+  System(api, "Kgwari API", "Three routes over ONE store.\nGET /search · /search/suggest · /search/browse")
+  System(projection, "The search projection", "One row per searchable thing,\nalready shaped as the contract\nit will be returned as.")
+}
+
+System_Ext(engine, "Amazon OpenSearch", "Managed domain (beta · production)\nServerless NextGen (dev · uat)\nBehind SearchIndexAdapterInterface")
+
+System_Ext(domains, "Four contributing domains", "wines · provenance · events · members\nEach knows how to become one row.")
+
+Rel(member, client, "Searches", "type-ahead + committed query")
+Rel(client, api, "GET /search?q=", "HTTPS · Accept-Language")
+Rel(api, projection, "Reads rows already shaped")
+Rel(projection, engine, "Indexed into", "when an engine is configured")
+Rel(domains, projection, "Project into", "DynamoDB Streams")
+
+note right of projection
+  **The store holds the row it will return.**
+  An index document is the text to match on,
+  plus the contract verbatim and unindexed.
+  Query time does no mapping — it assembles
+  the response from stored rows, so the cost
+  is paid once at write time rather than
+  per query.
+end note
+
+note bottom of client
+  **No displayable string crosses the network.**
+  The server says *what* a row is; the client
+  says it *in French*. Verdicts resolve to their
+  enum before the query is even sent, so they
+  are searchable in every locale with no
+  translation pipeline at all.
+end note
+
+@enduml

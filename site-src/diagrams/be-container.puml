@@ -7,12 +7,12 @@ skinparam backgroundColor #FFFFFF
 skinparam defaultFontName "Inter"
 skinparam shadowing false
 
-title Kgwari API — Containers (per environment: morara-<env>)
+title Kgwari API — Containers (per environment: kgwari-<env>, eu-west-1)
 
 Person(member, "Authenticated member")
 System_Ext(frontend, "Kgwari Client", "Expo client")
 
-System_Boundary(be, "morara-backend-app — morara-<env>") {
+System_Boundary(be, "kgwari-backend-app — kgwari-<env>") {
 
   Container_Boundary(authstack, "auth-stack") {
     Container(userpool, "Cognito User Pool", "Amazon Cognito ESSENTIALS", "Passkeys — user verification REQUIRED\nJWT issuer · JWKS")
@@ -22,16 +22,23 @@ System_Boundary(be, "morara-backend-app — morara-<env>") {
   Container_Boundary(apistack, "api-stack") {
     Container(apigw, "HTTP API Gateway", "API Gateway v2", "JWT authorizer -> Cognito · custom domain")
 
-    Container_Boundary(lambdas, "11 route Lambdas — one bundle, one declarative route table") {
-      Container(catalogL, "Catalog", "6 lambda", "GET /public/wines · /public/featuredwine\n/public/collections · GET /wines\nPOST /wines (auth) · GET /wines/{id}")
+    Container_Boundary(lambdas, "15 route Lambdas — one bundle, one declarative route table") {
+      Container(catalogL, "Catalog", "4 lambda", "GET /public/wines · /public/featuredwine\n/public/collections · GET /wines/{id}")
+      Container(cellarL, "Cellar", "3 lambda · auth", "GET /cellar · POST /cellar · GET /cellar/{id}")
       Container(discoverL, "getDiscover", "1 lambda", "GET /discover — reads 6 tables")
+      Container(searchL, "Search", "3 lambda · public", "GET /search · /search/suggest · /search/browse\n29s timeout on serverless only, to absorb\nthe collection's cold start")
       Container(memberL, "Member", "2 lambda · auth", "GET /members/me (alias /user/profile)\nPATCH /members/me — partial by design")
       Container(otpL, "OTP broker", "2 lambda · public", "POST /auth/otp/start · /auth/otp/verify\notpSession handle is the binding")
     }
   }
 
   Container_Boundary(datastack, "data-stack") {
-    ContainerDb(ddb, "7 DynamoDB tables", "Amazon DynamoDB", "wines · members · provenance · editorial\nevents · social · discover-plan\nNames derived from one suffix map — no Fn::ImportValue")
+    ContainerDb(ddb, "8 DynamoDB tables", "Amazon DynamoDB", "wines · members · provenance · editorial\nevents · social · discover-plan · search\nNames derived from one suffix map — no Fn::ImportValue")
+    Container(projector, "projectSearchRows", "Lambda · ONE function, FOUR streams", "wines · provenance · events · members\nTRIM_HORIZON · batchSize 10\nreportBatchItemFailures + bisect on error")
+  }
+
+  Container_Boundary(searchstack, "search-stack — its own stack, because a domain takes 15-30 min to change") {
+    Container(engine, "OpenSearch", "managed | serverless | none", "beta & production: managed domain\ndev & uat: NextGen collection, scales to zero\nSelected by EnvironmentConfiguration.search.flavour")
   }
 
   Container_Boundary(webstack, "web-stack") {
@@ -48,11 +55,17 @@ Rel(member, frontend, "Uses")
 Rel(frontend, apigw, "REST", "HTTPS · Bearer JWT")
 Rel(apigw, userpool, "Verifies JWT", "JWKS")
 Rel(apigw, catalogL, "routes")
+Rel(apigw, cellarL, "routes", "authorized")
 Rel(apigw, discoverL, "routes")
+Rel(apigw, searchL, "routes", "public")
 Rel(apigw, memberL, "routes", "authorized")
 Rel(apigw, otpL, "routes", "public")
 Rel(catalogL, ddb, "Query / Get / Put", "AWS SDK v3")
+Rel(cellarL, ddb, "Query / Get / Put")
 Rel(discoverL, ddb, "Query x6 pools")
+Rel(searchL, engine, "Search", "SigV4 · `es` managed, `aoss` serverless")
+Rel(ddb, projector, "Streams changes to", "NEW_IMAGE")
+Rel(projector, ddb, "Writes search rows", "write grant only")
 Rel(memberL, ddb, "Get / Update members")
 Rel(otpL, userpool, "AdminGetUser · AdminCreateUser", "cognito-idp")
 Rel(otpL, ddb, "Reads & writes members")

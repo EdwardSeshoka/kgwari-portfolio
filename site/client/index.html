@@ -18,6 +18,8 @@
         <a href="/client" aria-current="page">01 Client</a>
         <a href="/api">02 API</a>
         <a href="/shared">03 Shared</a>
+        <a href="/search">04 Search</a>
+        <a href="/localization">05 Localization</a>
       </nav>
     </div>
   </header>
@@ -27,7 +29,7 @@
     <div class="project-header">
       <div class="project-number">01</div>
       <div>
-        <h2 class="project-title">Kgwari Client<small>morara-frontend-app · TypeScript · Expo · React Native + Web</small></h2>
+        <h2 class="project-title">Kgwari Client<small>kgwari-frontend-app · TypeScript · Expo · React Native + Web</small></h2>
       </div>
       <div class="stack">
         <span class="tag">Expo 54</span>
@@ -46,7 +48,7 @@
         <h3><span class="kind">1A — Context</span>People &amp; external systems</h3>
         <p class="diagram-caption">Three kinds of person now use the client, and the difference matters: a member carries a status word, a verified account carries a trust mark, and a reviewer walks the same build with the network swapped out.</p>
       </div>
-      <div class="diagram-frame"><img src="/assets/diagrams/fe-context.svg" alt="fe-context diagram" width="904" height="819" fetchpriority="high"></div>
+      <div class="diagram-frame"><img src="/assets/diagrams/fe-context.svg" alt="fe-context diagram" width="1164" height="836" fetchpriority="high"></div>
       <details class="source"><summary>PlantUML source</summary><pre>@startuml
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
 
@@ -62,12 +64,13 @@ Person(member, "Member", "Discovers, searches, cellars and reviews wine.\nStatus
 Person_Ext(verified, "Verified Account", "Professional · producer · distributor.\nTrust mark earned at business onboarding.")
 Person_Ext(reviewer, "Designer / Reviewer", "Walks deterministic offline flows via App Doubles.")
 
-System(frontend, "Kgwari Client", "morara-frontend-app — universal Expo app (web, iOS, Android).\nBuildFlavor x AppEnvironment runtime split.")
+System(frontend, "Kgwari Client", "kgwari-frontend-app — universal Expo app (web, iOS, Android).\nBuildFlavor x AppEnvironment runtime split.")
 
 System_Ext(backend, "Kgwari API", "HTTPS / JSON over API Gateway")
 System_Ext(cognito, "Amazon Cognito", "Passkey-first sign-in, OTP fallback, JWT issuance")
-System_Ext(cdn, "CloudFront + S3", "Static web hosting (dev / beta / production)")
-System_Ext(ghpkg, "GitHub Packages", "@edwardseshoka contracts · foundation · samples · places · phone-number-validation")
+System_Ext(cdn, "CloudFront + S3", "Static web hosting (dev / uat / beta / production)")
+System_Ext(bedrock, "Amazon Bedrock", "Build time only — fills draft locale catalogues\nfor a native speaker to review")
+System_Ext(ghpkg, "GitHub Packages", "@edwardseshoka contracts · foundation · samples")
 
 Rel(member, frontend, "Uses", "HTTPS")
 Rel(verified, frontend, "Claims records · publishes verdicts", "HTTPS")
@@ -76,6 +79,7 @@ Rel(frontend, cdn, "Loaded from", "HTTPS")
 Rel(frontend, backend, "Calls REST API", "HTTPS / JSON")
 Rel(frontend, cognito, "Passkey registration &amp; assertion, OTP fallback", "JWT")
 Rel_Back(frontend, ghpkg, "Resolves at build time", "npm install")
+Rel(frontend, bedrock, "Generates draft catalogues", "pnpm i18n:translate")
 
 @enduml</pre></details>
     </div>
@@ -83,10 +87,10 @@ Rel_Back(frontend, ghpkg, "Resolves at build time", "npm install")
     <!-- 1B: CONTAINER -->
     <div class="diagram">
       <div class="diagram-head">
-        <h3><span class="kind">1B — Container</span>Nine feature domains, one bundle</h3>
-        <p class="diagram-caption">Twenty-four workspace packages compile to a single Expo bundle. The composition root is the only place a concrete adapter is named, which is what makes the App Doubles swap a configuration change rather than a code change.</p>
+        <h3><span class="kind">1B — Container</span>Twelve feature domains, one bundle</h3>
+        <p class="diagram-caption">Thirty-four workspace packages compile to a single Expo bundle. The composition root is the only place a concrete adapter is named, which is what makes the App Doubles swap a configuration change rather than a code change.</p>
       </div>
-      <div class="diagram-frame"><img src="/assets/diagrams/fe-container.svg" alt="fe-container diagram" width="2184" height="1418" loading="lazy" decoding="async"></div>
+      <div class="diagram-frame"><img src="/assets/diagrams/fe-container.svg" alt="fe-container diagram" width="2414" height="1554" loading="lazy" decoding="async"></div>
       <details class="source"><summary>PlantUML source</summary><pre>@startuml
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 
@@ -96,29 +100,33 @@ skinparam backgroundColor #FFFFFF
 skinparam defaultFontName "Inter"
 skinparam shadowing false
 
-title Kgwari Client — Containers (24 workspace packages, one bundle)
+title Kgwari Client — Containers (34 workspace packages, one bundle)
 
 Person(member, "Member", "Web / iOS / Android")
 
-System_Boundary(fe, "morara-frontend-app") {
+System_Boundary(fe, "kgwari-frontend-app") {
   Container(shell, "Expo Router Shell", "expo-router 6 · React 19.1 · RN 0.81", "(app)/(tabs): discover · search · cellar · community · profile\n/wine/[wineId] · /member · /developer-settings")
 
   Container(composition, "Composition Root", "main/src/composition", "AppComponents + per-feature composition;\nthe only place a concrete adapter is named")
 
-  Container_Boundary(features, "Feature Packages — 9 domains, 19 packages (workspace:*)") {
+  Container_Boundary(features, "Feature Packages — 12 domains, 27 packages (workspace:*)") {
     Container(memberF, "member-domain / -data / -presentation", "18 use cases", "Passkey · OTP · drafts · session · recognized account")
     Container(discoverF, "discover-domain / -data / -presentation", "Fade Yield feed", "Hero + five sections, desktop &amp; mobile views")
-    Container(catalogF, "catalog-domain / -data", "Wine · WineId", "Verdict &amp; provenance vocabulary")
-    Container(contentF, "editorial · events · provenance · social", "domain + data", "The pools Discover arranges")
-    Container(surfaceF, "cellar- / search- presentation", "screens", "Tab surfaces with no domain of their own yet")
+    Container(searchF, "search-domain / -data / -presentation", "The unified ledger", "One ranked list across five kinds.\nHas its own domain now — it was a bare\ntab surface at the last revision")
+    Container(socialF, "social-domain / -data / -presentation", "Notes &amp; community", "Tasting notes, the writing stream")
+    Container(catalogF, "catalog · collections · contributions · lenses", "domain + data", "Wine · WineId · verdict &amp; provenance vocabulary")
+    Container(contentF, "editorial · events · provenance", "domain + data", "The pools Discover arranges")
+    Container(cellarF, "cellar-presentation", "screens", "The one surface still without a domain")
   }
 
-  Container_Boundary(sharedPkgs, "Shared Packages (workspace:*)") {
-    Container(ds, "@shared/design-system", "Tokens · atoms · molecules")
+  Container_Boundary(sharedPkgs, "Shared Packages — 7 (workspace:*)") {
+    Container(ds, "@shared/design-system", "Tokens · atoms · molecules", "Logical start/end spacing only,\nso RTL is a config flip")
     Container(pcore, "@shared/presentation-core", "View / ViewModel protocol · responsive")
-    Container(loc, "@shared/localization", "i18next + formatjs polyfills")
-    Container(net, "@shared/networking", "Fetch · auth header · retry")
+    Container(loc, "@shared/localization", "i18next + FormatJS polyfill-force", "7 locales x 9 namespaces.\nThe only package other layers\nimport for i18n")
+    Container(net, "@shared/networking", "Fetch · auth header · retry", "Sends Accept-Language, reads Content-Language")
     Container(persist, "@shared/persistence", "KeyValueStorage seam — local / in-memory")
+    Container(flags, "@shared/feature-flags", "Capability gating")
+    Container(obs, "@shared/observability", "Structured client logging")
   }
 
   Container(config, "Configuration", "TypeScript", "BuildFlavor x AppEnvironment · EnvironmentResolver")
@@ -150,7 +158,7 @@ Rel_U(ghpkg, features, "Provides contracts · foundation · samples · capabilit
     <div class="diagram">
       <div class="diagram-head">
         <h3><span class="kind">1C — Component</span>Inside the <code class="inline">member</code> feature slice</h3>
-        <p class="diagram-caption">The richest slice in the repo: eighteen use cases behind six ports, with passkeys, an OTP fallback, unsent drafts and account recall each entering through a different adapter but leaving through the same domain.</p>
+        <p class="diagram-caption">Still the richest slice in the repo: eighteen use cases behind seven ports, with passkeys, an OTP fallback, third-party provider auth, unsent drafts and account recall each entering through a different adapter but leaving through the same domain.</p>
       </div>
       <div class="diagram-frame"><img src="/assets/diagrams/fe-component.svg" alt="fe-component diagram" width="2003" height="1672" loading="lazy" decoding="async"></div>
       <details class="source"><summary>PlantUML source</summary><pre>@startuml
@@ -220,8 +228,9 @@ Rel(repos, persistence, "Drafts &amp; recognized account")
     <div class="summary">
       <div class="label">Technical Summary</div>
       <div>
-        <p>A universal Expo application shipped as a pnpm-workspaces monorepo: nineteen feature packages across nine domains — catalog, cellar, discover, editorial, events, member, provenance, search, social — over five shared packages for the design system, presentation core, localization, networking and persistence. Presentation is strictly MVVM: every screen has a <code>ViewModelInterface</code>, which is the seam the tests bind to instead of the React tree.</p>
+        <p>A universal Expo application shipped as a pnpm-workspaces monorepo: twenty-seven feature packages across twelve domains — catalog, cellar, collections, contributions, discover, editorial, events, lenses, member, provenance, search, social — over seven shared packages for the design system, presentation core, localization, networking, persistence, feature flags and observability. Presentation is strictly MVVM: every screen has a <code>ViewModelInterface</code>, which is the seam the tests bind to instead of the React tree.</p>
         <p>Two decisions carry most of the weight. The first is the runtime split between <em>BuildFlavor</em> and <em>AppEnvironment</em>: non-release builds expose an in-app environment switcher and pluggable App Doubles that substitute at the repository boundary, so a single deployable bundle can produce deterministic offline states for design review. The second is that persistence goes through a <code>KeyValueStorage</code> seam rather than touching platform storage directly — the same reason the member slice can test draft-saving and account recall without a browser.</p>
+        <p>Two of the twelve domains are documented on their own pages, because neither is only a client concern. Search grew a real domain here since the last revision — it was a bare tab surface with no domain of its own — and it now carries five use cases, two of which exist only on this side of the wire: recent search terms are recorded and read locally, and never travel. Localization is the other, and <code>@shared/localization</code> is the single package every other layer imports for it, enforced by lint rather than convention. See <a href="/search">04 / Search</a> and <a href="/localization">05 / Localization</a>.</p>
       </div>
     </div>
   </section>

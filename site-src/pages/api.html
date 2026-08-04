@@ -2,14 +2,15 @@
     <div class="project-header">
       <div class="project-number">02</div>
       <div>
-        <h2 class="project-title">Kgwari API<small>morara-backend-app · TypeScript · AWS CDK · Serverless</small></h2>
+        <h2 class="project-title">Kgwari API<small>kgwari-backend-app · TypeScript · AWS CDK · Serverless</small></h2>
       </div>
       <div class="stack">
         <span class="tag">AWS CDK v2</span>
-        <span class="tag">Lambda ×12</span>
+        <span class="tag">15 routes + a projector</span>
         <span class="tag">API Gateway v2</span>
-        <span class="tag">DynamoDB ×7</span>
+        <span class="tag">DynamoDB ×8</span>
         <span class="tag">Cognito passkeys</span>
+        <span class="tag">OpenSearch</span>
         <span class="tag">Powertools</span>
       </div>
     </div>
@@ -25,8 +26,8 @@
 
     <div class="diagram">
       <div class="diagram-head">
-        <h3><span class="kind">2B — Container</span>Four CDK stacks · twelve Lambdas · seven tables</h3>
-        <p class="diagram-caption">Eleven of the twelve Lambdas are route handlers, and each one's IAM grants and HTTP route are derived from the same row of a declarative table — so a route cannot be wired without the table access it needs. The twelfth is the Cognito post-confirmation trigger.</p>
+        <h3><span class="kind">2B — Container</span>Seven CDK stacks · fifteen routes · eight tables</h3>
+        <p class="diagram-caption">Every route Lambda's IAM grants and HTTP path are derived from the same row of a declarative table, so a route cannot be wired without the table access it needs. Two Lambdas are not routes at all: the Cognito post-confirmation trigger, and the projector that turns four table streams into search rows — see <a href="/search">04 / Search</a>.</p>
       </div>
       <div class="diagram-frame" data-puml-id="be-container"></div>
       <details class="source"><summary>PlantUML source</summary><pre data-puml-source="be-container"></pre></details>
@@ -44,7 +45,7 @@
     <div class="summary">
       <div class="label">Technical Summary</div>
       <div>
-        <p>A serverless TypeScript backend of seven feature domains — catalog, discover, editorial, events, member, provenance, social — each split into data, domain and presentation, sitting on eight <code>packages/core</code> libraries for HTTP adaptation, persistence, configuration, observability and the shared trust vocabulary. Four CDK stacks (auth, data, api, web) provision it into three account-isolated environments in af-south-1.</p>
+        <p>A serverless TypeScript backend of nine feature domains — catalog, collections, discover, editorial, events, member, provenance, search, social — each split into data, domain and presentation, sitting on eleven <code>packages/core</code> libraries for HTTP adaptation, persistence, configuration, observability, the OpenSearch and Bedrock and Translate clients, and the shared trust vocabulary. Seven CDK stacks (auth, data, api, search, dns, web-certificate, web) provision it into four account-isolated environments in eu-west-1.</p>
         <p>The infrastructure is written to remove whole classes of drift rather than to be clever. Physical table names come from one suffix map that both the creating and the consuming stack derive from, and consumers reference tables by derived name instead of <code>Fn::ImportValue</code> — which is what lets a data-stack change proceed without deadlocking its dependants. Routes, Lambdas and grants come from a single declarative table. A moved resource keeps its old address through an explicit alias path rather than a duplicated function, so already-shipped clients keep working while the new one ships.</p>
       </div>
     </div>

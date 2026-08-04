@@ -1,0 +1,57 @@
+  <section class="project" id="search">
+    <div class="project-header">
+      <div class="project-number">04</div>
+      <div>
+        <h2 class="project-title">Kgwari Search<small>A capability, not a repository — contracts, backend slice, engine stack</small></h2>
+      </div>
+      <div class="stack">
+        <span class="tag">Amazon OpenSearch</span>
+        <span class="tag">DynamoDB Streams</span>
+        <span class="tag">Managed / Serverless</span>
+        <span class="tag">3 routes</span>
+        <span class="tag">5 projection mappers</span>
+        <span class="tag">2 seams</span>
+      </div>
+    </div>
+
+    <p class="note">
+      The first three pages answer <em>what is in each repository</em>. This one and the next answer a different question — <em>how does one capability cross them</em>. Search lives in <code>contracts/search</code>, in a backend feature slice, in its own CDK stack and in a stream-driven writer; describing it inside any single repository's page would lose most of it.
+    </p>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">4A — Context</span>One ledger, five kinds, one row shape</h3>
+        <p class="diagram-caption">A wine, an estate, a region, a tasting and a person come back in one ranked list, in one row shape, with the kind as a field rather than a separate result type. That is what lets the client render a single scroll that never changes gear between entities — and it is why search reads one store rather than fanning out across five.</p>
+      </div>
+      <div class="diagram-frame" data-puml-id="se-context"></div>
+      <details class="source"><summary>PlantUML source</summary><pre data-puml-source="se-context"></pre></details>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">4B — Container</span>A read path, a write path, and an engine that changes shape per environment</h3>
+        <p class="diagram-caption">The write path is one Lambda on four DynamoDB streams: every contributing table is self-describing through its partition key, so a single handler can tell what a record is without knowing which table sent it. The engine stack stands alone because a managed domain takes fifteen to thirty minutes to change, and folding that into the data stack would put every table change behind a cluster rollout.</p>
+      </div>
+      <div class="diagram-frame" data-puml-id="se-container"></div>
+      <details class="source"><summary>PlantUML source</summary><pre data-puml-source="se-container"></pre></details>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">4C — Component</span>The two seams a change is cheap at</h3>
+        <p class="diagram-caption">Everything above <code class="inline">SearchIndexAdapterInterface</code> is untouched by which engine answered — moving from DynamoDB to OpenSearch cost one new class and zero contract changes. Everything below <code class="inline">SearchIndexRepositoryInterface</code> is free of the wire contracts, so the entity shape stays ours when the wire moves. What is outside both is where a change is expensive, which is the useful thing to know before proposing one.</p>
+      </div>
+      <div class="diagram-frame" data-puml-id="se-component"></div>
+      <details class="source"><summary>PlantUML source</summary><pre data-puml-source="se-component"></pre></details>
+    </div>
+
+    <div class="summary">
+      <div class="label">Technical Summary</div>
+      <div>
+        <p>Search is a projection rather than a fan-out. <code>GET /discover</code> reads six tables behind one request and carries an explicit per-route budget as the scar; search must not copy that shape, because querying five domain tables per keystroke multiplies latency by the slowest domain, makes cross-domain ranking impossible, and turns type-ahead into five reads per character. Instead one store holds rows already projected — and it holds the row it will return, with the response contract stored verbatim and unindexed, so query time assembles rather than maps. The cost is paid once at write time.</p>
+        <p>The write path is where most of the work is. Four tables stream <code>NEW_IMAGE</code> into one projector Lambda with <code>TRIM_HORIZON</code> rather than <code>LATEST</code>, because between enabling a stream and attaching the function there is a window of writes that <code>LATEST</code> skips silently — and a skipped change is invisible, since the ledger simply keeps the old row. Batches are small so a poison record holds up as little as possible, <code>reportBatchItemFailures</code> and the handler's return value work only as a pair, and a failing batch is bisected so one bad record cannot condemn its nine neighbours. Deletes are handled explicitly: a stale row is worse than a missing one, because it routes a member to a record that no longer exists.</p>
+        <p>The engine differs per environment and the reasoning is not about price or capability, both of which turned out not to decide it. Serverless supports ICU folding, and NextGen collections have no OCU floor. What decides it is who is waiting: a collection scaled to zero takes ten to thirty seconds to wake, which costs nothing on an environment nobody is using and is unacceptable to a member typing in a search box. Keeping a collection warm is not a workaround either — a ping every nine minutes means never scaling to zero, at roughly three times the cost of managed high availability.</p>
+        <p>No displayable string crosses the network. The server says what a row is; the client says it in French. Because verdicts are a closed enum rather than free text, the client resolves the word to its key before the query is sent — so verdicts stay searchable and filterable in every locale with no translation pipeline at all, and the index never holds a translated verdict word.</p>
+      </div>
+    </div>
+  </section>

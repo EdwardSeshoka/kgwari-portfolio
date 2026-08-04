@@ -2,7 +2,7 @@
     <div class="project-header">
       <div class="project-number">01</div>
       <div>
-        <h2 class="project-title">Kgwari Client<small>morara-frontend-app · TypeScript · Expo · React Native + Web</small></h2>
+        <h2 class="project-title">Kgwari Client<small>kgwari-frontend-app · TypeScript · Expo · React Native + Web</small></h2>
       </div>
       <div class="stack">
         <span class="tag">Expo 54</span>
@@ -28,8 +28,8 @@
     <!-- 1B: CONTAINER -->
     <div class="diagram">
       <div class="diagram-head">
-        <h3><span class="kind">1B — Container</span>Nine feature domains, one bundle</h3>
-        <p class="diagram-caption">Twenty-four workspace packages compile to a single Expo bundle. The composition root is the only place a concrete adapter is named, which is what makes the App Doubles swap a configuration change rather than a code change.</p>
+        <h3><span class="kind">1B — Container</span>Twelve feature domains, one bundle</h3>
+        <p class="diagram-caption">Thirty-four workspace packages compile to a single Expo bundle. The composition root is the only place a concrete adapter is named, which is what makes the App Doubles swap a configuration change rather than a code change.</p>
       </div>
       <div class="diagram-frame" data-puml-id="fe-container"></div>
       <details class="source"><summary>PlantUML source</summary><pre data-puml-source="fe-container"></pre></details>
@@ -39,7 +39,7 @@
     <div class="diagram">
       <div class="diagram-head">
         <h3><span class="kind">1C — Component</span>Inside the <code class="inline">member</code> feature slice</h3>
-        <p class="diagram-caption">The richest slice in the repo: eighteen use cases behind six ports, with passkeys, an OTP fallback, unsent drafts and account recall each entering through a different adapter but leaving through the same domain.</p>
+        <p class="diagram-caption">Still the richest slice in the repo: eighteen use cases behind seven ports, with passkeys, an OTP fallback, third-party provider auth, unsent drafts and account recall each entering through a different adapter but leaving through the same domain.</p>
       </div>
       <div class="diagram-frame" data-puml-id="fe-component"></div>
       <details class="source"><summary>PlantUML source</summary><pre data-puml-source="fe-component"></pre></details>
@@ -48,8 +48,9 @@
     <div class="summary">
       <div class="label">Technical Summary</div>
       <div>
-        <p>A universal Expo application shipped as a pnpm-workspaces monorepo: nineteen feature packages across nine domains — catalog, cellar, discover, editorial, events, member, provenance, search, social — over five shared packages for the design system, presentation core, localization, networking and persistence. Presentation is strictly MVVM: every screen has a <code>ViewModelInterface</code>, which is the seam the tests bind to instead of the React tree.</p>
+        <p>A universal Expo application shipped as a pnpm-workspaces monorepo: twenty-seven feature packages across twelve domains — catalog, cellar, collections, contributions, discover, editorial, events, lenses, member, provenance, search, social — over seven shared packages for the design system, presentation core, localization, networking, persistence, feature flags and observability. Presentation is strictly MVVM: every screen has a <code>ViewModelInterface</code>, which is the seam the tests bind to instead of the React tree.</p>
         <p>Two decisions carry most of the weight. The first is the runtime split between <em>BuildFlavor</em> and <em>AppEnvironment</em>: non-release builds expose an in-app environment switcher and pluggable App Doubles that substitute at the repository boundary, so a single deployable bundle can produce deterministic offline states for design review. The second is that persistence goes through a <code>KeyValueStorage</code> seam rather than touching platform storage directly — the same reason the member slice can test draft-saving and account recall without a browser.</p>
+        <p>Two of the twelve domains are documented on their own pages, because neither is only a client concern. Search grew a real domain here since the last revision — it was a bare tab surface with no domain of its own — and it now carries five use cases, two of which exist only on this side of the wire: recent search terms are recorded and read locally, and never travel. Localization is the other, and <code>@shared/localization</code> is the single package every other layer imports for it, enforced by lint rather than convention. See <a href="/search">04 / Search</a> and <a href="/localization">05 / Localization</a>.</p>
       </div>
     </div>
   </section>

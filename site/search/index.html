@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kgwari Search — C4 Architecture Diagrams</title>
+<meta name="description" content="Context, container and component diagrams for the repositories behind Kgwari, a cross-platform wine-discovery product.">
+<link rel="stylesheet" href="/assets/fonts.css">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+
+<body>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <a class="brand" href="/">Kgwari<span>C4 Architecture</span></a>
+      <nav>
+        <a href="/">Overview</a>
+        <a href="/client">01 Client</a>
+        <a href="/api">02 API</a>
+        <a href="/shared">03 Shared</a>
+        <a href="/search" aria-current="page">04 Search</a>
+        <a href="/localization">05 Localization</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="page">
+  <section class="project" id="search">
+    <div class="project-header">
+      <div class="project-number">04</div>
+      <div>
+        <h2 class="project-title">Kgwari Search<small>A capability, not a repository — contracts, backend slice, engine stack</small></h2>
+      </div>
+      <div class="stack">
+        <span class="tag">Amazon OpenSearch</span>
+        <span class="tag">DynamoDB Streams</span>
+        <span class="tag">Managed / Serverless</span>
+        <span class="tag">3 routes</span>
+        <span class="tag">5 projection mappers</span>
+        <span class="tag">2 seams</span>
+      </div>
+    </div>
+
+    <p class="note">
+      The first three pages answer <em>what is in each repository</em>. This one and the next answer a different question — <em>how does one capability cross them</em>. Search lives in <code>contracts/search</code>, in a backend feature slice, in its own CDK stack and in a stream-driven writer; describing it inside any single repository's page would lose most of it.
+    </p>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">4A — Context</span>One ledger, five kinds, one row shape</h3>
+        <p class="diagram-caption">A wine, an estate, a region, a tasting and a person come back in one ranked list, in one row shape, with the kind as a field rather than a separate result type. That is what lets the client render a single scroll that never changes gear between entities — and it is why search reads one store rather than fanning out across five.</p>
+      </div>
+      <div class="diagram-frame"><img src="/assets/diagrams/se-context.svg" alt="se-context diagram" width="823" height="1429" fetchpriority="high"></div>
+      <details class="source"><summary>PlantUML source</summary><pre>@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari Search — System Context (one ledger, five kinds, one row shape)
+
+Person(member, "Member", "Types a query. Gets wines, estates, regions,\ntastings and people in one ranked list.")
+
+System_Boundary(search, "Search — a projection, not a fan-out") {
+  System(client, "Kgwari Client", "Sends NFC-normalised query text\nand Accept-Language. Renders every\ndisplayable string itself.")
+  System(api, "Kgwari API", "Three routes over ONE store.\nGET /search · /search/suggest · /search/browse")
+  System(projection, "The search projection", "One row per searchable thing,\nalready shaped as the contract\nit will be returned as.")
+}
+
+System_Ext(engine, "Amazon OpenSearch", "Managed domain (beta · production)\nServerless NextGen (dev · uat)\nBehind SearchIndexAdapterInterface")
+
+System_Ext(domains, "Four contributing domains", "wines · provenance · events · members\nEach knows how to become one row.")
+
+Rel(member, client, "Searches", "type-ahead + committed query")
+Rel(client, api, "GET /search?q=", "HTTPS · Accept-Language")
+Rel(api, projection, "Reads rows already shaped")
+Rel(projection, engine, "Indexed into", "when an engine is configured")
+Rel(domains, projection, "Project into", "DynamoDB Streams")
+
+note right of projection
+  **The store holds the row it will return.**
+  An index document is the text to match on,
+  plus the contract verbatim and unindexed.
+  Query time does no mapping — it assembles
+  the response from stored rows, so the cost
+  is paid once at write time rather than
+  per query.
+end note
+
+note bottom of client
+  **No displayable string crosses the network.**
+  The server says *what* a row is; the client
+  says it *in French*. Verdicts resolve to their
+  enum before the query is even sent, so they
+  are searchable in every locale with no
+  translation pipeline at all.
+end note
+
+@enduml</pre></details>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">4B — Container</span>A read path, a write path, and an engine that changes shape per environment</h3>
+        <p class="diagram-caption">The write path is one Lambda on four DynamoDB streams: every contributing table is self-describing through its partition key, so a single handler can tell what a record is without knowing which table sent it. The engine stack stands alone because a managed domain takes fifteen to thirty minutes to change, and folding that into the data stack would put every table change behind a cluster rollout.</p>
+      </div>
+      <div class="diagram-frame"><img src="/assets/diagrams/se-container.svg" alt="se-container diagram" width="1896" height="1636" loading="lazy" decoding="async"></div>
+      <details class="source"><summary>PlantUML source</summary><pre>@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari Search — Containers (the read path, the write path, and the engine)
+
+System_Ext(client, "Kgwari Client", "Expo app")
+
+System_Boundary(be, "kgwari-backend-app — kgwari-&lt;env&gt;") {
+
+  Container_Boundary(apistack, "api-stack — the read path") {
+    Container(apigw, "HTTP API Gateway", "API Gateway v2", "Public routes — search needs no JWT")
+    Container(searchL, "3 search Lambdas", "Node 20", "getSearch · getSearchSuggest · getSearchBrowse\nreads: search · readsSearchIndex: true\n**timeout 29s on serverless only** — to absorb\nthe collection's cold start")
+  }
+
+  Container_Boundary(datastack, "data-stack — the write path") {
+    ContainerDb(searchTable, "search table", "Amazon DynamoDB", "The store of record for the projection.\nThe engine index is derived from it,\nwhich is why the engine can be rebuilt.")
+    Container(projector, "projectSearchRows", "Lambda · ONE function, FOUR streams", "batchSize 10 · TRIM_HORIZON\nreportBatchItemFailures + bisect on error")
+    ContainerDb(sources, "4 streamed tables", "DynamoDB Streams · NEW_IMAGE", "wines · provenance · events · members\nEach record is self-describing through its\npartition key, so one handler can dispatch")
+  }
+
+  Container_Boundary(searchstack, "search-stack — its own stack, on purpose") {
+    Container(managed, "OpenSearch Domain", "L2 · managed", "beta: 1x t3.small.search\nproduction: 2 nodes across AZs\nBills from provisioning — no stop, no pause")
+    Container(serverless, "NextGen Collection", "L1 only · serverless", "In a min-0 collection group.\nScales to zero after ~10 min idle,\nthen 10-30s to wake.")
+  }
+
+  Container(bootstrap, "BootstrapSearchIndex", "Node script", "PUTs index-mapping.json to the cluster.\nStrips settings.index on serverless,\nwhich rejects shards and replicas.")
+  Container(backfill, "BackfillSearchProjection", "Node script", "Initial projection run over existing records —\nthe streams only carry what changes after them")
+}
+
+System_Ext(mapping, "infra/search/index-mapping.json", "icu_folding + icu_normalizer · digit char_filter\nquery-time synonyms · per-language prose analyzers\nNO stemming on names — Meerlust must stay Meerlust")
+
+Rel(client, apigw, "GET /search · /suggest · /browse", "HTTPS")
+Rel(apigw, searchL, "routes")
+Rel(searchL, searchTable, "Query", "when flavour is none")
+Rel(searchL, managed, "Search", "SigV4 · service name **es**")
+Rel(searchL, serverless, "Search", "SigV4 · service name **aoss**")
+Rel(sources, projector, "Invokes on change")
+Rel(projector, searchTable, "Writes rows", "write grant only — everything it\nreads arrives in the stream record")
+Rel(backfill, searchTable, "Seeds existing records")
+Rel(bootstrap, mapping, "Reads")
+Rel(bootstrap, managed, "PUT _index", "REST")
+Rel(bootstrap, serverless, "PUT _index", "REST")
+
+note bottom of searchstack
+  **Why two flavours, and what actually decided it.**
+  Not capability — Serverless has ICU folding too, and
+  NextGen has no OCU floor. It was **who is waiting**:
+  dev and uat are idle most of the day and nobody waits
+  on them, so a cold start costs nothing. A member typing
+  in the search box must not wait ten seconds.
+
+  `EnvironmentConfiguration.search.flavour` picks one, so
+  moving an environment either way is a one-line change.
+end note
+
+note right of searchstack
+  **SearchEngineBinding carries data, not a callback.**
+  An earlier version exposed `grantRead(grantee)`, which
+  made the search stack reach back into the api stack for
+  Lambda role ARNs — and CloudFormation rejected the whole
+  app as a cyclic reference. A grant belongs where the
+  *grantee* is.
+end note
+
+@enduml</pre></details>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-head">
+        <h3><span class="kind">4C — Component</span>The two seams a change is cheap at</h3>
+        <p class="diagram-caption">Everything above <code class="inline">SearchIndexAdapterInterface</code> is untouched by which engine answered — moving from DynamoDB to OpenSearch cost one new class and zero contract changes. Everything below <code class="inline">SearchIndexRepositoryInterface</code> is free of the wire contracts, so the entity shape stays ours when the wire moves. What is outside both is where a change is expensive, which is the useful thing to know before proposing one.</p>
+      </div>
+      <div class="diagram-frame"><img src="/assets/diagrams/se-component.svg" alt="se-component diagram" width="2830" height="1357" loading="lazy" decoding="async"></div>
+      <details class="source"><summary>PlantUML source</summary><pre>@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari Search — Component view: the two seams a change is cheap at
+
+Container_Boundary(presentation, "search/presentation") {
+  Component(handlers, "3 handlers", "Lambda", "GetSearchHandler · GetSearchSuggestHandler\nGetSearchBrowseHandler — read Accept-Language,\necho Content-Language")
+  Component(projHandler, "ProjectSearchRowsHandler", "Stream handler", "Returns batchItemFailures so one poison\nrecord cannot condemn its nine neighbours")
+  Component(toContract, "SearchResultToContractMapper", "Mapper", "Entity -&gt; wire. The ONLY place the\nwire shape is known")
+  Component(routes, "SearchRoutes", "Constants", "/search · /search/suggest · /search/browse\nFixed by the client, which was built first")
+}
+
+Container_Boundary(domain, "search/domain — imports no wire contract") {
+  Component(readUse, "Read use cases", "TS", "SearchCatalogUseCase\nSuggestSearchUseCase\nGetBrowseGroupsUseCase")
+  Component(writeUse, "ProjectSearchRowUseCase", "TS", "One stream record -&gt; one projected row")
+  Component(entities, "Entities", "TS", "SearchResult · SearchBrowseGroup")
+  Component(repoPorts, "SearchIndexRepositoryInterface\nSearchProjectionRepositoryInterface", "Ports", "**SEAM 2** — no -domain package imports\nthe wire contracts; presentation owns\nthe translation")
+}
+
+Container_Boundary(data, "search/data") {
+  Component(repos, "SearchIndexRepository\nSearchProjectionRepository", "Adapters", "Implement the ports")
+  Component(adapterPort, "SearchIndexAdapterInterface", "Port", "**SEAM 1** — nothing above it learns\nwhich engine answered. DynamoDB -&gt; OpenSearch\ncost one new class and zero contract changes")
+  Component(dynAdapter, "DynamoSearchIndexAdapter", "Adapter", "The null adapter: a single-table read\nover the final row shape")
+  Component(osAdapter, "OpenSearchIndexAdapter", "Adapter", "@opensearch-project/opensearch\nAwsSigv4Signer over the REST API")
+  Component(projAdapter, "DynamoSearchProjectionAdapter", "Adapter", "Writes and deletes projected rows")
+  Component(mappers, "5 projection mappers", "TS", "Wine · Producer · Region · Event · Member\nItemToSearchRow — five sets of rules,\nthe same rules the client renders")
+  Component(orphans, "OrphanedRows", "TS", "A removed wine must remove its row.\nA stale row is worse than a missing one —\nit routes a member to nothing")
+}
+
+Container_Boundary(core, "packages/core") {
+  Component(osCore, "core/opensearch", "TS", "createOpenSearchClient — signs with the\nambient credential chain. Service name\n`es` managed, `aoss` serverless; the\nwrong one is an opaque 403")
+  Component(cfg, "core/config", "TS", "EnvironmentConfiguration.search.flavour")
+}
+
+ContainerDb_Ext(searchTable, "search table", "DynamoDB")
+System_Ext(engine, "OpenSearch", "Managed or Serverless")
+System_Ext(contracts, "@edwardseshoka/contracts/search", "v10.0.0 — SearchResultContract\nCanonicalText · ChromeText · NegotiatedText")
+
+Rel(routes, handlers, "Names the paths for")
+Rel(handlers, readUse, "Invoke")
+Rel(projHandler, writeUse, "Invokes")
+Rel(handlers, toContract, "Serialise through")
+Rel(toContract, contracts, "Shapes to")
+Rel(readUse, repoPorts, "Depend on")
+Rel(writeUse, repoPorts, "Depends on")
+Rel(readUse, entities, "Return")
+Rel(repos, repoPorts, "Implement")
+Rel(repos, adapterPort, "Depend on")
+Rel(dynAdapter, adapterPort, "Implements")
+Rel(osAdapter, adapterPort, "Implements")
+Rel(projAdapter, mappers, "Maps with")
+Rel(projAdapter, orphans, "Reconciles deletes via")
+Rel(dynAdapter, searchTable, "Query")
+Rel(projAdapter, searchTable, "Put / Delete")
+Rel(osAdapter, osCore, "Client from")
+Rel(osCore, engine, "HTTPS · SigV4")
+Rel(cfg, repos, "Selects the adapter")
+
+note bottom of adapterPort
+  Everything OUTSIDE these two seams is where a
+  change is expensive — which is the useful thing
+  to know before proposing one.
+end note
+
+@enduml</pre></details>
+    </div>
+
+    <div class="summary">
+      <div class="label">Technical Summary</div>
+      <div>
+        <p>Search is a projection rather than a fan-out. <code>GET /discover</code> reads six tables behind one request and carries an explicit per-route budget as the scar; search must not copy that shape, because querying five domain tables per keystroke multiplies latency by the slowest domain, makes cross-domain ranking impossible, and turns type-ahead into five reads per character. Instead one store holds rows already projected — and it holds the row it will return, with the response contract stored verbatim and unindexed, so query time assembles rather than maps. The cost is paid once at write time.</p>
+        <p>The write path is where most of the work is. Four tables stream <code>NEW_IMAGE</code> into one projector Lambda with <code>TRIM_HORIZON</code> rather than <code>LATEST</code>, because between enabling a stream and attaching the function there is a window of writes that <code>LATEST</code> skips silently — and a skipped change is invisible, since the ledger simply keeps the old row. Batches are small so a poison record holds up as little as possible, <code>reportBatchItemFailures</code> and the handler's return value work only as a pair, and a failing batch is bisected so one bad record cannot condemn its nine neighbours. Deletes are handled explicitly: a stale row is worse than a missing one, because it routes a member to a record that no longer exists.</p>
+        <p>The engine differs per environment and the reasoning is not about price or capability, both of which turned out not to decide it. Serverless supports ICU folding, and NextGen collections have no OCU floor. What decides it is who is waiting: a collection scaled to zero takes ten to thirty seconds to wake, which costs nothing on an environment nobody is using and is unacceptable to a member typing in a search box. Keeping a collection warm is not a workaround either — a ping every nine minutes means never scaling to zero, at roughly three times the cost of managed high availability.</p>
+        <p>No displayable string crosses the network. The server says what a row is; the client says it in French. Because verdicts are a closed enum rather than free text, the client resolves the word to its key before the query is sent — so verdicts stay searchable and filterable in every locale with no translation pipeline at all, and the index never holds a translated verdict word.</p>
+      </div>
+    </div>
+  </section>
+
+  <nav class="pager">
+      <a class="prev" href="/shared">
+        <div class="dir">Previous</div>
+        <div class="where">Kgwari Shared</div>
+        <div class="what">kgwari-shared · Changesets · GitHub Packages</div>
+      </a>
+      <a class="next" href="/localization">
+        <div class="dir">Next</div>
+        <div class="where">Kgwari Localization</div>
+        <div class="what">Seven tags · three content tiers · Bedrock + Amazon Translate</div>
+      </a>
+  </nav>
+
+  <footer class="colophon">
+    <div>Diagrams generated from the PlantUML sources in <code>site-src/diagrams</code></div>
+    <div>C4 model · Simon Brown · c4model.com</div>
+  </footer>
+  </div>
+</body>
+</html>
