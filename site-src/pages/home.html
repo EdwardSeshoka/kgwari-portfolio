@@ -3,21 +3,22 @@
     <div>
       <p class="eyebrow">Architecture Portfolio · C4 Model</p>
       <h1 class="title">Kgwari <em>— a multi-repo TypeScript product</em></h1>
-      <p class="subtitle">Context, container and component diagrams for the repositories that compose one cross-platform wine-discovery product: a universal client, a serverless API, and the versioned contract surface between them.</p>
+      <p class="subtitle">Context, container and component diagrams for the repositories that compose one cross-platform wine-discovery product: a universal client, a serverless API, and the versioned contract surface between them — followed by two capabilities that cross all three.</p>
     </div>
     <div class="meta">
       <div><strong>AUTHOR</strong> &nbsp; Edward Seshoka</div>
       <div><strong>NOTATION</strong> &nbsp; C4-PlantUML</div>
-      <div><strong>SCOPE</strong> &nbsp; 3 repos · 10 diagrams</div>
-      <div><strong>REVISED</strong> &nbsp; July 2026</div>
+      <div><strong>SCOPE</strong> &nbsp; 5 repos · 16 diagrams</div>
+      <div><strong>REVISED</strong> &nbsp; August 2026</div>
     </div>
   </header>
 
   <p class="note">
-    A note on names. The product is <strong>Kgwari</strong>; the repositories, CDK stacks and AWS
-    resources still carry the earlier <code>morara-</code> prefix. The rename is deliberate and in
-    flight, so this document uses the product name in prose and the literal repository and resource
-    names everywhere they are the thing you would actually type.
+    Two organising principles, deliberately. Pages 01–03 are drawn per repository and answer
+    <em>what is in each one</em>. Pages 04–05 are drawn per capability and answer <em>how does one
+    feature cross them</em> — search and localization each live in the contracts, in the backend, in
+    the client and in their own infrastructure, and neither would survive being filed under a single
+    repository.
   </p>
 
   <!-- ============ CONTENTS ============ -->
@@ -25,22 +26,32 @@
     <div class="toc-item">
       <div class="num">00 / PLATFORM</div>
       <div class="name">How it fits together</div>
-      <div class="desc">Five repositories · one runtime · AWS af-south-1</div>
+      <div class="desc">Five repositories · one runtime · AWS eu-west-1</div>
     </div>
     <a class="toc-item" href="/client">
       <div class="num">01 / CLIENT</div>
-      <div class="name">morara-frontend-app</div>
-      <div class="desc">Expo Router · React Native Web · 24 workspace packages</div>
+      <div class="name">kgwari-frontend-app</div>
+      <div class="desc">Expo Router · React Native Web · 34 workspace packages</div>
     </a>
     <a class="toc-item" href="/api">
       <div class="num">02 / API</div>
-      <div class="name">morara-backend-app</div>
-      <div class="desc">AWS CDK · 12 Lambdas · 7 DynamoDB tables · Cognito passkeys</div>
+      <div class="name">kgwari-backend-app</div>
+      <div class="desc">AWS CDK · 15 routes · 8 DynamoDB tables · Cognito passkeys</div>
     </a>
     <a class="toc-item" href="/shared">
       <div class="num">03 / SHARED</div>
-      <div class="name">morara-shared</div>
-      <div class="desc">Changesets · GitHub Packages · contracts · capabilities · adapters</div>
+      <div class="name">kgwari-shared</div>
+      <div class="desc">Changesets · GitHub Packages · contracts · foundation · samples</div>
+    </a>
+    <a class="toc-item" href="/search">
+      <div class="num">04 / SEARCH</div>
+      <div class="name">One ledger, five kinds</div>
+      <div class="desc">DynamoDB projection · four streams · Amazon OpenSearch</div>
+    </a>
+    <a class="toc-item" href="/localization">
+      <div class="num">05 / LOCALIZATION</div>
+      <div class="name">Seven tags, six languages</div>
+      <div class="desc">Three content tiers · Bedrock at build · Translate at runtime</div>
     </a>
   </nav>
 
@@ -53,8 +64,8 @@
       </div>
       <div class="stack">
         <span class="tag">TypeScript</span>
-        <span class="tag">AWS af-south-1</span>
-        <span class="tag">dev · beta · production</span>
+        <span class="tag">AWS eu-west-1</span>
+        <span class="tag">dev · uat · beta · production</span>
         <span class="tag">GitHub Actions OIDC</span>
       </div>
     </div>
@@ -71,8 +82,9 @@
     <div class="summary">
       <div class="label">Why five</div>
       <div>
-        <p>The split is drawn along release cadence, not along technology. <code>morara-frontend-app</code> and <code>morara-backend-app</code> deploy on their own schedules into the same three AWS environments; <code>morara-shared</code> is the only thing both compile against, so it is published rather than vendored, and a breaking change there has to announce itself as a semver major before either consumer can pick it up.</p>
-        <p>The two non-runtime repositories exist to stop duplication. <code>kwari-docs</code> is the single source of truth for design and architecture — the app repos keep pointer stubs at <code>docs/&lt;name&gt;.md</code> naming the canonical location, so a developer still finds their way without a second copy that can drift. <code>morara-portfolio</code> is this site: a private S3 bucket behind CloudFront with Origin Access Control, deployed by the same OIDC-assumed-role pattern as everything else.</p>
+        <p>The split is drawn along release cadence, not along technology. <code>kgwari-frontend-app</code> and <code>kgwari-backend-app</code> deploy on their own schedules into the same four AWS environments, each an account of its own; <code>kgwari-shared</code> is the only thing both compile against, so it is published rather than vendored, and a breaking change there has to announce itself as a semver major before either consumer can pick it up.</p>
+        <p>The two non-runtime repositories exist to stop duplication. <code>kgwari-docs</code> is the single source of truth for design and architecture — the app repos keep pointer stubs at <code>docs/&lt;name&gt;.md</code> naming the canonical location, so a developer still finds their way without a second copy that can drift. <code>kgwari-portfolio</code> is this site: a private S3 bucket behind CloudFront with Origin Access Control, deployed by the same OIDC-assumed-role pattern as everything else.</p>
+        <p>The portfolio is the one repository that does not share an environment account. It sits in <code>kgwari-web</code>, its own member account in the Prod organisational unit, because it is the public content property rather than an environment of the product — and <code>dev</code> is the environment that gets destroyed and rebuilt on purpose. A link you send someone should not live there.</p>
       </div>
     </div>
   </section>

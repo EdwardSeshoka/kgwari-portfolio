@@ -7,29 +7,33 @@ skinparam backgroundColor #FFFFFF
 skinparam defaultFontName "Inter"
 skinparam shadowing false
 
-title Kgwari Client — Containers (24 workspace packages, one bundle)
+title Kgwari Client — Containers (34 workspace packages, one bundle)
 
 Person(member, "Member", "Web / iOS / Android")
 
-System_Boundary(fe, "morara-frontend-app") {
+System_Boundary(fe, "kgwari-frontend-app") {
   Container(shell, "Expo Router Shell", "expo-router 6 · React 19.1 · RN 0.81", "(app)/(tabs): discover · search · cellar · community · profile\n/wine/[wineId] · /member · /developer-settings")
 
   Container(composition, "Composition Root", "main/src/composition", "AppComponents + per-feature composition;\nthe only place a concrete adapter is named")
 
-  Container_Boundary(features, "Feature Packages — 9 domains, 19 packages (workspace:*)") {
+  Container_Boundary(features, "Feature Packages — 12 domains, 27 packages (workspace:*)") {
     Container(memberF, "member-domain / -data / -presentation", "18 use cases", "Passkey · OTP · drafts · session · recognized account")
     Container(discoverF, "discover-domain / -data / -presentation", "Fade Yield feed", "Hero + five sections, desktop & mobile views")
-    Container(catalogF, "catalog-domain / -data", "Wine · WineId", "Verdict & provenance vocabulary")
-    Container(contentF, "editorial · events · provenance · social", "domain + data", "The pools Discover arranges")
-    Container(surfaceF, "cellar- / search- presentation", "screens", "Tab surfaces with no domain of their own yet")
+    Container(searchF, "search-domain / -data / -presentation", "The unified ledger", "One ranked list across five kinds.\nHas its own domain now — it was a bare\ntab surface at the last revision")
+    Container(socialF, "social-domain / -data / -presentation", "Notes & community", "Tasting notes, the writing stream")
+    Container(catalogF, "catalog · collections · contributions · lenses", "domain + data", "Wine · WineId · verdict & provenance vocabulary")
+    Container(contentF, "editorial · events · provenance", "domain + data", "The pools Discover arranges")
+    Container(cellarF, "cellar-presentation", "screens", "The one surface still without a domain")
   }
 
-  Container_Boundary(sharedPkgs, "Shared Packages (workspace:*)") {
-    Container(ds, "@shared/design-system", "Tokens · atoms · molecules")
+  Container_Boundary(sharedPkgs, "Shared Packages — 7 (workspace:*)") {
+    Container(ds, "@shared/design-system", "Tokens · atoms · molecules", "Logical start/end spacing only,\nso RTL is a config flip")
     Container(pcore, "@shared/presentation-core", "View / ViewModel protocol · responsive")
-    Container(loc, "@shared/localization", "i18next + formatjs polyfills")
-    Container(net, "@shared/networking", "Fetch · auth header · retry")
+    Container(loc, "@shared/localization", "i18next + FormatJS polyfill-force", "7 locales x 9 namespaces.\nThe only package other layers\nimport for i18n")
+    Container(net, "@shared/networking", "Fetch · auth header · retry", "Sends Accept-Language, reads Content-Language")
     Container(persist, "@shared/persistence", "KeyValueStorage seam — local / in-memory")
+    Container(flags, "@shared/feature-flags", "Capability gating")
+    Container(obs, "@shared/observability", "Structured client logging")
   }
 
   Container(config, "Configuration", "TypeScript", "BuildFlavor x AppEnvironment · EnvironmentResolver")

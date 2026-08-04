@@ -34,7 +34,7 @@ Container_Boundary(dataLayer, "*/data — one adapter pair per domain") {
   Component(recMappers, "Record mappers", "TS", "DynamoDB item <-> Entity")
 }
 
-Container_Boundary(core, "packages/core — eight shared packages") {
+Container_Boundary(core, "packages/core — eleven shared packages") {
   Component(lambdaHttp, "lambda-http", "TS", "response · error.middleware · validate.middleware\napiGatewayEvent · JwtClaims")
   Component(persistCore, "persistence", "TS", "partitionTable · fieldReaders")
   Component(dynClient, "dynamodb", "@aws-sdk/lib-dynamodb", "Memoised document client")

@@ -7,18 +7,18 @@ skinparam backgroundColor #FFFFFF
 skinparam defaultFontName "Inter"
 skinparam shadowing false
 
-title morara-shared — System Context
+title kgwari-shared — System Context
 
 Person(maintainer, "Maintainer", "Authors changesets · merges the Version Packages PR")
 Person_Ext(consumerDev, "Consumer Developer", "Frontend / backend engineer")
 
-System(shared, "morara-shared", "Private TypeScript monorepo\nSix packages under @edwardseshoka:\ncontracts · foundation · samples · places\nphone-number-validation · google-places-adapter")
+System(shared, "kgwari-shared", "Private TypeScript monorepo\nThree packages under @edwardseshoka:\ncontracts · foundation · samples\nThe places capability and its Google adapter\nwere removed — nothing consumed them")
 
-System_Ext(fe, "morara-frontend-app", "Consumes contracts · foundation · samples · capabilities")
-System_Ext(be, "morara-backend-app", "Consumes contracts · foundation · samples · adapters")
+System_Ext(fe, "kgwari-frontend-app", "Consumes contracts · foundation · samples")
+System_Ext(be, "kgwari-backend-app", "Consumes contracts · foundation · samples")
 System_Ext(ghpkg, "GitHub Packages", "Private npm registry under the @edwardseshoka scope")
 System_Ext(gha, "GitHub Actions", "Changesets release workflow")
-System_Ext(docs, "kwari-docs", "Package layering doc — the rule the dependency direction follows")
+System_Ext(docs, "kgwari-docs", "Package layering doc — the rule the dependency direction follows")
 
 Rel(maintainer, shared, "Commits + changesets")
 Rel(shared, gha, "PR validation & release workflows", "on push / merge")

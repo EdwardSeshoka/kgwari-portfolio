@@ -13,24 +13,31 @@ Person(member, "Member", "Enthusiast or collector.\nDiscovers, cellars, records 
 Person_Ext(verified, "Verified Account", "Professional · producer · distributor.\nEarns a trust mark; carries the byline.")
 Person_Ext(maintainer, "Maintainer", "Authors changesets · merges Version Packages · deploys per-env")
 
-System_Boundary(runtime, "Kgwari runtime (AWS af-south-1 · dev · beta · production)") {
-  System(frontend, "Kgwari Client", "morara-frontend-app\nUniversal Expo app — web today, iOS/Android prepared")
-  System(backend, "Kgwari API", "morara-backend-app\nServerless TypeScript · 12 Lambdas · 7 DynamoDB tables")
+System_Boundary(runtime, "Kgwari runtime (AWS eu-west-1 · dev · uat · beta · production)") {
+  System(frontend, "Kgwari Client", "kgwari-frontend-app\nUniversal Expo app — web today, iOS/Android prepared\n12 feature domains · 34 workspace packages")
+  System(backend, "Kgwari API", "kgwari-backend-app\nServerless TypeScript · 9 feature domains\n15 routes + a stream projector · 8 DynamoDB tables")
 }
 
 System_Ext(cognito, "Amazon Cognito", "User pool · passkeys + OTP · JWT issuer")
+System_Ext(opensearch, "Amazon OpenSearch", "The search ledger.\nManaged on beta and production;\nserverless and scaled to zero on dev and uat")
+System_Ext(bedrock, "Amazon Bedrock", "Two unrelated jobs sharing one service:\nchrome translation (build time)\nwine-label parsing (runtime)")
+System_Ext(translate, "Amazon Translate", "'See translation' for members' own words")
 
-System(shared, "morara-shared", "Six published packages under @edwardseshoka\ncontracts · foundation · samples · capabilities · adapters")
+System(shared, "kgwari-shared", "Three published packages under @edwardseshoka\ncontracts · foundation · samples")
 System_Ext(ghpkg, "GitHub Packages", "Private npm registry (@edwardseshoka scope)")
 
-System_Ext(docs, "kwari-docs", "Single source of truth for design & architecture.\nApp repos keep pointer stubs only.")
-System(portfolio, "morara-portfolio", "This document.\nStatic S3 + CloudFront one-pager.")
+System_Ext(docs, "kgwari-docs", "Single source of truth for design & architecture.\nApp repos keep pointer stubs only.")
+System(portfolio, "kgwari-portfolio", "This document.\nS3 + CloudFront at portfolio.kgwari.com,\nin its own kgwari-web account")
 
 Rel(member, frontend, "Uses", "HTTPS")
 Rel(verified, frontend, "Publishes provenance & editorial", "HTTPS")
 Rel(frontend, backend, "Calls REST API", "HTTPS / JSON · Bearer JWT")
 Rel(frontend, cognito, "Passkey / OTP sign-in", "SRP · JWT")
 Rel(backend, cognito, "Verifies JWTs · admin OTP broker", "JWKS · cognito-idp")
+Rel(backend, opensearch, "Queries · indexes", "SigV4 over REST")
+Rel(backend, translate, "Translates a note on demand", "runtime")
+Rel(backend, bedrock, "Parses a wine label", "runtime")
+Rel(frontend, bedrock, "Fills draft catalogues", "build time · gap-fill only")
 
 Rel(shared, ghpkg, "Publishes changed packages only", "Changesets")
 Rel_Back(ghpkg, frontend, "Installs contracts / samples / capabilities", "build-time")

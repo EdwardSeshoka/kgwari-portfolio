@@ -1,0 +1,71 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+HIDE_STEREOTYPE()
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Inter"
+skinparam shadowing false
+
+title Kgwari Localization — Containers (seven tags, six languages, one source catalogue)
+
+Person(member, "Member")
+Person_Ext(reviewer, "Native-speaker reviewer")
+
+System_Boundary(fe, "kgwari-frontend-app") {
+
+  Container_Boundary(locPkg, "@shared/localization — the single source of i18n machinery") {
+    Container(resolve, "ResolveLocale", "TS", "Returns a ResolvedLocale, not a string:\nuiLanguage · formattingLocale · region\nnumberingSystem · measurementSystem")
+    Container(negotiation, "LocaleNegotiation", "TS", "Ordered device preferences INTERSECT\nserved catalogues. Override -> system -> en")
+    Container(formatters, "UseFormatters + FormattersCore", "Hooks + pure fns", "Memoised Intl.NumberFormat · DateTimeFormat\nRelativeTimeFormat · Collator · ListFormat\nCurrency REQUIRES an explicit currencyCode")
+    Container(strings, "UseLocalizedStrings", "Hook", "i18next with compile-time typed key paths")
+    Container(polyfills, "Polyfills", "FormatJS", "**polyfill-force** — Hermes delegates Intl to\nthe OS, so the same call differs on iOS,\nAndroid and web. Determinism over bundle size")
+    Container(pseudo, "PseudoLocalize", "postProcessor", "Accents + 40% expansion + brackets.\nUnbracketed text = a hardcoded string")
+    ContainerDb(catalogues, "resources/<locale>/*.json", "9 namespaces x 7 locales", "cellar · common · community · dashboard\ndiscover · onboarding · profile · search · wines")
+    ContainerDb(registry, "locales.json", "The launch set + readiness", "status gates NEGOTIATION\nofferInPicker gates the PICKER\nendonym · servesBase")
+    ContainerDb(provenance, ".provenance.json", "Sidecar per locale", "Marks which keys are still `mt` —\nso a reviewer can see what to read")
+    ContainerDb(glossary, "glossary.json", "Terms that must not drift", "Fed to the model as context")
+  }
+
+  Container(i18nTranslate, "scripts/i18n-translate.mjs", "Node · build time", "Fills gaps in every draft locale.\nNEVER overwrites — which is what makes it\nsafe to re-run after a reviewer has been through")
+  Container(parity, "scripts/check-locale-parity.mjs", "Node · CI", "Plural-aware; validates per-locale CLDR\ncategories via Intl.PluralRules. Shares its\ndefinition of a key with the translator\nvia scripts/lib/catalogues.mjs")
+  Container(lint, "4 ESLint guardrails", "eslint.config.mjs", "No localization import in domain/data\nNo raw Intl outside the package\nNo hardcoded JSX text · no left/right spacing")
+}
+
+System_Boundary(be, "kgwari-backend-app") {
+  Container(bedrockCore, "packages/core/bedrock", "BedrockRuntimeClient", "Shared with wine-label parsing —\nthe service, not the concern")
+  Container(translateCore, "packages/core/translate", "TranslateClient", "Behind EnvironmentConfiguration.translation.enabled")
+}
+
+System_Ext(bedrock, "Amazon Bedrock", "eu-west-1")
+System_Ext(translateSvc, "Amazon Translate", "eu-west-1")
+
+Rel(member, resolve, "Device preferences read by")
+Rel(resolve, negotiation, "Negotiates through")
+Rel(negotiation, registry, "Reads served locales from")
+Rel(strings, catalogues, "Loads")
+Rel(formatters, polyfills, "Formats through")
+Rel(i18nTranslate, catalogues, "Gap-fills")
+Rel(i18nTranslate, glossary, "Prompted with")
+Rel(i18nTranslate, provenance, "Records mt keys in")
+Rel(i18nTranslate, bedrock, "InvokeModel", "build time")
+Rel(reviewer, catalogues, "Corrects")
+Rel(reviewer, registry, "Promotes draft -> reviewed")
+Rel(parity, catalogues, "Gates")
+Rel(parity, registry, "Reads the reference locale from")
+Rel(translateCore, translateSvc, "TranslateText", "runtime")
+Rel(bedrockCore, bedrock, "InvokeModel", "label parsing")
+
+note bottom of registry
+  **status and offerInPicker are different questions.**
+  Landing on a half-filled Afrikaans catalogue because
+  your phone is set to Afrikaans is a broken app you did
+  not ask for. Choosing AF from the footer and seeing
+  English where the catalogue is thin is a different
+  transaction, and an acceptable one.
+
+  Today: `en` base; `af`, `fr-FR`, `fr-CA`, `de`, `it`,
+  `es` all **draft** — generated, awaiting review.
+end note
+
+@enduml

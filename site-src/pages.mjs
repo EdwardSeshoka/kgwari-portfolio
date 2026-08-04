@@ -42,6 +42,22 @@ export const pages = [
     where: "Kgwari Shared",
     what: "kgwari-shared · Changesets · GitHub Packages",
   },
+  {
+    slug: "search",
+    file: "search.html",
+    title: "Kgwari Search — C4 Architecture Diagrams",
+    nav: "04 Search",
+    where: "Kgwari Search",
+    what: "One ledger · DynamoDB projection · Amazon OpenSearch",
+  },
+  {
+    slug: "localization",
+    file: "localization.html",
+    title: "Kgwari Localization — C4 Architecture Diagrams",
+    nav: "05 Localization",
+    where: "Kgwari Localization",
+    what: "Seven tags · three content tiers · Bedrock + Amazon Translate",
+  },
 ];
 
 /**
