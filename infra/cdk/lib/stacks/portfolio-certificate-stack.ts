@@ -6,10 +6,11 @@ import type { AppEnvironment } from "../config/app-environment.js";
 
 export type PortfolioCertificateStackProps = StackProps & {
   appEnvironment: AppEnvironment;
-  /** The CloudFront alias, e.g. `portfolio.dev.kgwari.com`. */
+  /** The CloudFront alias, e.g. `portfolio.kgwari.com`. */
   portfolioDomainName: string;
-  /** The zone answering the validation record, e.g. `dev.kgwari.com`. */
+  /** The zone answering the validation record, created by PortfolioDnsStack. */
   portfolioHostedZoneName: string;
+  portfolioHostedZoneId: string;
 };
 
 /**
@@ -18,15 +19,21 @@ export type PortfolioCertificateStackProps = StackProps & {
  *
  * It replaces a `PORTFOLIO_CERTIFICATE_ARN` pasted into a GitHub variable. That
  * string could not express the constraint it was carrying: a certificate is
- * bound to a region *and* an account, and both changed in this migration, so
+ * bound to a region *and* an account, and both changed in the region move, so
  * the old value would have failed only at deploy — the same way the backend's
  * did during the first region attempt.
  *
- * **The zone is looked up rather than created.** `dev.kgwari.com` belongs to
- * the backend's dns stack, in this same account. Looking it up by name is the
- * loose coupling that suits a repository boundary: this stack does not own the
- * zone, must not delete it, and should not need a CloudFormation export from
- * another repository to find it.
+ * **The zone arrives as an id, not as a lookup.** It is created by
+ * `PortfolioDnsStack` in this same account, in the home region; `hostedZoneId`
+ * crosses into us-east-1 as a token through `crossRegionReferences`. Route 53
+ * is global, so a zone created in one region is writable from a stack in
+ * another. What this buys over `fromLookup` is that a zone which does not exist
+ * cannot resolve to a dummy value and let synth pass.
+ *
+ * **Validation cannot succeed before the delegation does.** ACM against an
+ * undelegated zone does not error — it sits at "pending" for hours. Deploy this
+ * stack only after `scripts/aws/bootstrap-account.mjs` has written the NS record
+ * into the apex and confirmed it resolves.
  */
 export class PortfolioCertificateStack extends Stack {
   public readonly certificate: acm.ICertificate;
@@ -34,8 +41,9 @@ export class PortfolioCertificateStack extends Stack {
   constructor(scope: Construct, id: string, props: PortfolioCertificateStackProps) {
     super(scope, id, props);
 
-    const hostedZone = route53.HostedZone.fromLookup(this, "PortfolioHostedZone", {
-      domainName: props.portfolioHostedZoneName
+    const hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, "PortfolioHostedZone", {
+      hostedZoneId: props.portfolioHostedZoneId,
+      zoneName: props.portfolioHostedZoneName
     });
 
     this.certificate = new acm.Certificate(this, "PortfolioCertificate", {

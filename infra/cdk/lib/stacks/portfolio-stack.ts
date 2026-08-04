@@ -12,6 +12,7 @@ import { getEnvironmentConfiguration } from "../config/environment-configuration
 export type PortfolioStackProps = StackProps & {
   appEnvironment: AppEnvironment;
   portfolioDomainName?: string;
+  /** Both come from PortfolioDnsStack, which creates the zone in this account. */
   portfolioHostedZoneName?: string;
   portfolioHostedZoneId?: string;
   /** Created by PortfolioCertificateStack in us-east-1, where CloudFront needs it. */
@@ -42,7 +43,7 @@ export class PortfolioStack extends Stack {
 
     if (domainName && !certificate) {
       throw new Error(
-        `Custom portfolio domain '${domainName}' needs its certificate. The stage builds one in PortfolioCertificateStack — check devPortfolioHostedZoneName is set in cdk.json context.`
+        `Custom portfolio domain '${domainName}' needs its certificate. The stage builds one in PortfolioCertificateStack — check productionPortfolioHostedZoneName is set in cdk.json context.`
       );
     }
 
@@ -167,22 +168,22 @@ function handler(event) {
   }
 }
 
+/**
+ * By attributes only. The lookup this replaced could return a *dummy* zone when
+ * it failed to resolve, so synth passed and the deploy wrote alias records into
+ * a zone that did not exist. The id comes from `PortfolioDnsStack`, which owns
+ * the zone in this account.
+ */
 function resolveHostedZone(
   scope: Construct,
   hostedZoneName?: string,
   hostedZoneId?: string
 ): route53.IHostedZone | undefined {
-  if (!hostedZoneName) return undefined;
+  if (!hostedZoneName || !hostedZoneId) return undefined;
 
-  if (hostedZoneId) {
-    return route53.HostedZone.fromHostedZoneAttributes(scope, "PortfolioHostedZone", {
-      hostedZoneId,
-      zoneName: hostedZoneName
-    });
-  }
-
-  return route53.HostedZone.fromLookup(scope, "PortfolioHostedZone", {
-    domainName: hostedZoneName
+  return route53.HostedZone.fromHostedZoneAttributes(scope, "PortfolioHostedZone", {
+    hostedZoneId,
+    zoneName: hostedZoneName
   });
 }
 

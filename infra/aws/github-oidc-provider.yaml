@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+# COPIED VERBATIM from kgwari-backend-app `infra/aws/github-oidc-provider.yaml`.
+# It lives in two repositories because it is account-level and `kgwari-web` is
+# not one of the backend's accounts — not because it is forked. Take changes
+# from there rather than editing here.
+#
+# The GitHub Actions OIDC identity provider for this account.
+#
+# **Why it is its own stack.** An account may hold exactly one provider for a
+# given issuer URL, and several role stacks need to name it — bootstrap, the
+# backend deploy role, the web deploy role. If each created its own, the second
+# would fail with `EntityAlreadyExists`; if one owned it, deleting that stack
+# would break the others. So it stands alone and publishes its ARN, and the role
+# stacks import it. The import also makes the dependency real: CloudFormation
+# refuses to delete this stack while a role stack is using it.
+#
+# This is the first thing deployed into a new account, before bootstrap.
+#
+#   aws cloudformation deploy \
+#     --region eu-west-1 \
+#     --stack-name kgwari-github-oidc-provider \
+#     --template-file infra/aws/github-oidc-provider.yaml
+#
+# IAM is global — the stack has a region, the provider does not.
+
+Description: GitHub Actions OIDC identity provider (kgwari)
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      # IAM stopped validating thumbprints for GitHub's provider — it verifies
+      # against trusted root CAs instead — but CloudFormation still requires the
+      # field. Both published values are listed so a rotation of either is a
+      # no-op rather than an outage.
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
+
+Outputs:
+  ProviderArn:
+    Description: Imported by the role stacks
+    Value: !Ref GitHubOidcProvider
+    Export:
+      Name: kgwari-github-oidc-provider-arn

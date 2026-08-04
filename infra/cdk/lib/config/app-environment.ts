@@ -1,18 +1,24 @@
-export const APP_ENVIRONMENTS = ["dev", "beta", "production"] as const;
+/**
+ * One target, not three.
+ *
+ * The portfolio is the public content property, not an environment of the
+ * product — see kgwari-docs `platform/web-content-account.md`. It has one
+ * account, one domain and one audience, so `dev` and `beta` were targets that
+ * could be selected and never deployed. A selectable target with no account
+ * behind it fails at deploy rather than at synth, which is the worst place to
+ * find out.
+ *
+ * The shape is kept — an environment axis, resolved the same way — because the
+ * content property may yet want a staging copy, and because the resolver reads
+ * every context key through it.
+ */
+export const APP_ENVIRONMENTS = ["production"] as const;
 
 export type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];
 
-export const DEFAULT_APP_ENVIRONMENT: AppEnvironment = "dev";
+export const DEFAULT_APP_ENVIRONMENT: AppEnvironment = "production";
 
 const APP_ENVIRONMENT_ALIASES: Record<string, AppEnvironment> = {
-  dev: "dev",
-  development: "dev",
-  local: "dev",
-  beta: "beta",
-  int: "beta",
-  integration: "beta",
-  uat: "beta",
-  staging: "beta",
   production: "production",
   prod: "production"
 };

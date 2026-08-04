@@ -1,20 +1,16 @@
 name: Main Release and Portfolio Deploy
 
+# One target, so no environment input. The portfolio is the public content
+# property in the `kgwari-web` account — see kgwari-docs
+# platform/web-content-account.md — not a product environment with dev and beta
+# copies of itself.
+
 on:
   push:
     branches:
       - main
   workflow_dispatch:
     inputs:
-      deployment_environment:
-        description: Deployment environment
-        required: true
-        default: dev
-        type: choice
-        options:
-          - dev
-          - beta
-          - production
       create_tag:
         description: Create a git version tag after a successful deploy
         required: true
@@ -26,27 +22,24 @@ permissions:
   id-token: write
 
 concurrency:
-  group: portfolio-release-${{ github.event.inputs.deployment_environment || vars.DEPLOY_ENVIRONMENT || 'dev' }}
+  group: portfolio-release-production
   cancel-in-progress: false
 
 jobs:
   deploy:
     name: Deploy Portfolio
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.deployment_environment || vars.DEPLOY_ENVIRONMENT || 'dev' }}
+    environment: production
 
     env:
-      DEPLOY_ENVIRONMENT: ${{ github.event.inputs.deployment_environment || vars.DEPLOY_ENVIRONMENT || 'dev' }}
-      ACCOUNT_ID: ${{ vars.ACCOUNT_ID }}
-      AWS_REGION: ${{ vars.AWS_REGION || 'af-south-1' }}
+      DEPLOY_ENVIRONMENT: production
+      AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-1' }}
+      # OIDC only. A long-lived access key alongside OIDC is the weakest link
+      # and the one nobody rotates — the static-key fallback this workflow used
+      # to carry is gone with the account it belonged to.
       AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      PORTFOLIO_DOMAIN_NAME: ${{ vars.PORTFOLIO_DOMAIN_NAME }}
-      PORTFOLIO_HOSTED_ZONE_NAME: ${{ vars.PORTFOLIO_HOSTED_ZONE_NAME }}
-      PORTFOLIO_HOSTED_ZONE_ID: ${{ vars.PORTFOLIO_HOSTED_ZONE_ID }}
-      PORTFOLIO_CERTIFICATE_ARN: ${{ vars.PORTFOLIO_CERTIFICATE_ARN }}
-      PORTFOLIO_STACK_NAME: ${{ vars.PORTFOLIO_STACK_NAME }}
+      # Overrides only. Both are read from stack outputs by default; set them
+      # in the GitHub environment for a temporary pin, not as configuration.
       S3_BUCKET: ${{ vars.S3_BUCKET }}
       CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
 
@@ -75,51 +68,48 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Validate AWS deploy configuration
+        run: |
+          set -euo pipefail
+
+          if [ -z "${AWS_ROLE_TO_ASSUME:-}" ]; then
+            echo "Missing secret AWS_ROLE_TO_ASSUME."
+            echo "Set it on the 'production' GitHub environment to the role ARN"
+            echo "printed by 'npm run account:build'."
+            exit 1
+          fi
+
+          # The account is in cdk.json, not a GitHub variable — reviewable in a
+          # pull request rather than edited invisibly.
+          account_id="$(node -p "JSON.parse(require('fs').readFileSync('cdk.json','utf8')).context.productionAccountId")"
+          if [ -z "$account_id" ]; then
+            echo "cdk.json has no productionAccountId. Fill in the kgwari-web account id."
+            exit 1
+          fi
+          echo "EXPECTED_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+
       - name: Configure AWS credentials (OIDC role)
-        if: ${{ env.AWS_ROLE_TO_ASSUME != '' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Configure AWS credentials (access key fallback)
-        if: ${{ env.AWS_ROLE_TO_ASSUME == '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Validate AWS deploy configuration
+      # The wrong-account guard, mirroring step 1 of bootstrap-account.mjs.
+      # Cheap, and the failure it prevents is not.
+      - name: Confirm the account
         run: |
           set -euo pipefail
-          aws_role_to_assume="${AWS_ROLE_TO_ASSUME:-}"
-          aws_access_key_id="${AWS_ACCESS_KEY_ID:-}"
-          aws_secret_access_key="${AWS_SECRET_ACCESS_KEY:-}"
-
-          if [ -z "${ACCOUNT_ID:-}" ]; then
-            echo "Missing variable ACCOUNT_ID."
-            echo "Set it in the selected GitHub Environment (${DEPLOY_ENVIRONMENT})."
+          actual="$(aws sts get-caller-identity --query Account --output text)"
+          if [ "$actual" != "$EXPECTED_ACCOUNT_ID" ]; then
+            echo "Assumed a role in account $actual, but cdk.json names $EXPECTED_ACCOUNT_ID." >&2
             exit 1
           fi
+          echo "Account $actual confirmed."
 
-          if [ -z "${aws_role_to_assume}" ] && { [ -z "${aws_access_key_id}" ] || [ -z "${aws_secret_access_key}" ]; }; then
-            echo "Missing AWS credentials. Set either:"
-            echo "- secret AWS_ROLE_TO_ASSUME (recommended OIDC role), or"
-            echo "- secrets AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY."
-            exit 1
-          fi
-
-          if [ -n "${PORTFOLIO_DOMAIN_NAME:-}" ] && [ -z "${PORTFOLIO_CERTIFICATE_ARN:-}" ]; then
-            echo "Missing variable PORTFOLIO_CERTIFICATE_ARN."
-            echo "PORTFOLIO_DOMAIN_NAME requires a us-east-1 ACM certificate ARN for CloudFront."
-            exit 1
-          fi
-
-      - name: Deploy CDK stack
+      - name: Deploy CDK stacks
         run: |
           set -euo pipefail
-          npx cdk deploy "kgwari-${DEPLOY_ENVIRONMENT}/*" \
+          npx cdk deploy "kgwari-web/*" \
             --require-approval never \
             --app "node dist/infra/cdk/bin/app.js"
 
@@ -128,7 +118,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          STACK_NAME="${PORTFOLIO_STACK_NAME:-kgwari-${DEPLOY_ENVIRONMENT}-portfolio}"
+          STACK_NAME="kgwari-web-portfolio"
           BUCKET="${S3_BUCKET:-}"
           DISTRIBUTION_ID="${CLOUDFRONT_DISTRIBUTION_ID:-}"
 
