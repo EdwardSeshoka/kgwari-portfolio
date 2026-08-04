@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+# COPIED VERBATIM from kgwari-backend-app `infra/aws/cdk-permissions-boundary.yaml`.
+# It lives in two repositories because it is account-level and `kgwari-web` is
+# not one of the backend's accounts — not because it is forked. Take changes
+# from there rather than editing here. The policy name `kgwari-cdk-boundary` is
+# what `cdk bootstrap --custom-permissions-boundary` is given, so it must match.
+#
+# The permissions boundary attached to every IAM role CDK creates.
+#
+# Deployed BEFORE `cdk bootstrap`, because bootstrap takes the policy name as an
+# argument (`--custom-permissions-boundary`) and every role synthesised
+# afterwards carries it. Roles created before it exists do not, and retrofitting
+# means redeploying the stacks that own them — which is why this goes first, in
+# a region that has nothing in it yet.
+#
+# **Why a guardrail and not an allow-list.** The stacks create Lambda execution
+# roles, so the CloudFormation execution role must be able to create roles at
+# all; the question is only what those roles may then do. An allow-list would
+# have to enumerate DynamoDB, Cognito, API Gateway, Route 53, ACM, CloudFront,
+# S3 and OpenSearch correctly on the first attempt, and each mistake surfaces
+# twenty minutes into a deploy as `is not authorized to perform ...`. A deny of
+# the escalation paths costs nothing in deploy failures and closes the routes
+# that actually matter: minting users and long-lived keys, rewriting trust
+# policies, and removing the boundary itself.
+#
+# Deploy:
+#   aws cloudformation deploy \
+#     --region eu-west-1 \
+#     --stack-name kgwari-cdk-permissions-boundary \
+#     --template-file infra/aws/cdk-permissions-boundary.yaml \
+#     --capabilities CAPABILITY_NAMED_IAM
+#
+# IAM is global — the stack lives in a region, the policy it creates does not.
+
+Description: Permissions boundary for all CDK-created IAM roles (kgwari)
+
+Resources:
+  CdkPermissionsBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: kgwari-cdk-boundary
+      Description: >-
+        Boundary for roles created by CDK. Permits the services the application
+        needs and denies identity creation, trust-policy rewriting and boundary
+        removal.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowServices
+            Effect: Allow
+            Action: "*"
+            Resource: "*"
+
+          # The escalation paths. A role that can mint a user or an access key
+          # can outlive the stack that created it and the credentials that
+          # deployed it; a role that can rewrite an assume-role policy can hand
+          # itself to anyone.
+          - Sid: DenyIdentityCreation
+            Effect: Deny
+            Action:
+              - iam:CreateUser
+              - iam:CreateAccessKey
+              - iam:CreateLoginProfile
+              - iam:UpdateLoginProfile
+              - iam:AttachUserPolicy
+              - iam:PutUserPolicy
+              - iam:CreateSAMLProvider
+              - iam:CreateOpenIDConnectProvider
+              - iam:UpdateAssumeRolePolicy
+              - iam:UpdateOpenIDConnectProviderThumbprint
+            Resource: "*"
+
+          # Without this the boundary is advisory: a bounded role could simply
+          # detach it, from itself or from anything else.
+          - Sid: DenyBoundaryEscape
+            Effect: Deny
+            Action:
+              - iam:DeleteRolePermissionsBoundary
+              - iam:DeleteUserPermissionsBoundary
+              - iam:PutRolePermissionsBoundary
+              - iam:PutUserPermissionsBoundary
+            Resource: "*"
+
+          - Sid: DenyOrgAndAccount
+            Effect: Deny
+            Action:
+              - organizations:*
+              - account:*
+            Resource: "*"
+
+Outputs:
+  BoundaryPolicyName:
+    Description: Pass this to `cdk bootstrap --custom-permissions-boundary`
+    Value: !Ref CdkPermissionsBoundary
+    Export:
+      Name: kgwari-cdk-boundary-arn

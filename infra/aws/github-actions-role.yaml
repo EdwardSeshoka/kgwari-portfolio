@@ -1,25 +1,26 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
-# The role CI assumes to deploy the portfolio. Least privilege — it no longer
-# carries AdministratorAccess, and it no longer creates its own OIDC provider.
+# The role CI assumes to deploy the portfolio. Least privilege — it does not
+# carry AdministratorAccess, and it does not create its own OIDC provider.
 #
 # **How it deploys without permission to create anything.** `cdk deploy` does
 # not build resources with these credentials: it assumes the bootstrap roles,
 # and CloudFormation assumes `cfn-exec-role` to do the work. So this role needs
 # `sts:AssumeRole` on the `cdk-*` roles, plus the few calls the workflow makes
-# directly — read the stack for the bucket, sync the built site, invalidate.
+# directly — read the stacks for the bucket and distribution, sync the built
+# site, invalidate.
 #
-# **Prerequisites, both already present in kgwari-dev:** the OIDC provider and
-# the CDK bootstrap, created by the backend repository's environment build. One
-# provider exists per account, so this template imports it rather than creating
-# a second one, which would fail with `EntityAlreadyExists`.
+# **Prerequisites, both created by scripts/aws/bootstrap-account.mjs before this
+# stack:** the OIDC provider and the CDK bootstrap. One provider exists per
+# account, so this template imports it rather than creating a second one, which
+# would fail with `EntityAlreadyExists`.
 #
-# Deploy into kgwari-dev (269608740515):
+# Deploy into kgwari-web (see productionAccountId in cdk.json):
 #
 #   aws cloudformation deploy \
 #     --region eu-west-1 \
 #     --stack-name kgwari-github-actions-portfolio-role \
-#     --template-file infra/aws/github-actions-role.dev.yaml \
+#     --template-file infra/aws/github-actions-role.yaml \
 #     --capabilities CAPABILITY_NAMED_IAM
 
 Description: GitHub Actions deploy role for the kgwari portfolio (least privilege)
@@ -35,16 +36,19 @@ Parameters:
 
   GitHubEnvironment:
     Type: String
-    Default: dev
+    Default: production
 
   StackNamePrefix:
     Type: String
-    Default: kgwari-dev
-    Description: Matches stackNamePrefix in environment-configuration.ts.
+    Default: kgwari-web
+    Description: >-
+      Matches stackNamePrefix in environment-configuration.ts. It names the
+      property, not the channel — the account is kgwari-web while the
+      environment is production.
 
   RoleName:
     Type: String
-    Default: github-actions-kgwari-portfolio-dev
+    Default: github-actions-kgwari-portfolio-production
 
   BootstrapQualifier:
     Type: String
@@ -68,7 +72,7 @@ Resources:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
               StringLike:
-                # Four subjects: the workflow runs both against the `dev`
+                # Four subjects: the workflow runs both against the `production`
                 # environment and directly on `main` without one, and GitHub now
                 # mints an **immutable subject** carrying numeric owner and
                 # repository ids (`repo:owner@123/name@456:…`). An exact match on
@@ -103,20 +107,17 @@ Resources:
                   - !Sub arn:${AWS::Partition}:ssm:eu-west-1:${AWS::AccountId}:parameter/cdk-bootstrap/${BootstrapQualifier}/version
                   - !Sub arn:${AWS::Partition}:ssm:us-east-1:${AWS::AccountId}:parameter/cdk-bootstrap/${BootstrapQualifier}/version
 
-              # The zone lookup CDK performs at synth so the certificate can
-              # validate against dev.kgwari.com, which the backend's dns stack
-              # owns in this same account.
-              - Sid: LookupHostedZone
-                Effect: Allow
-                Action:
-                  - route53:ListHostedZonesByName
-                  - route53:GetHostedZone
-                Resource: "*"
+              # No Route 53 statement any more. The zone is created by the dns
+              # stack rather than looked up at synth, so nothing needs to read it
+              # with these credentials — `cdk deploy` writes records through the
+              # bootstrap roles like every other resource.
 
-              - Sid: ReadPortfolioStack
+              - Sid: ReadPortfolioStacks
                 Effect: Allow
                 Action: cloudformation:DescribeStacks
-                Resource: !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${StackNamePrefix}-portfolio/*
+                Resource:
+                  - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${StackNamePrefix}-portfolio/*
+                  - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${StackNamePrefix}-dns/*
 
               - Sid: PublishSite
                 Effect: Allow
@@ -145,5 +146,5 @@ Resources:
 
 Outputs:
   RoleArn:
-    Description: Set as AWS_ROLE_TO_ASSUME on the dev GitHub environment
+    Description: Set as AWS_ROLE_TO_ASSUME on the production GitHub environment
     Value: !GetAtt PortfolioDeployRole.Arn

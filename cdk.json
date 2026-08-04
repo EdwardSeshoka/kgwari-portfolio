@@ -2,18 +2,40 @@
   "app": "node dist/infra/cdk/bin/app.js",
   "context": {
     "_comment": [
-      "The portfolio shares the kgwari-dev account (269608740515) rather than",
-      "owning one: it is a showcase, not the product, and the dev.kgwari.com zone",
-      "already lives there — so the record needs no delegation of its own.",
+      "The portfolio lives in `kgwari-web`, its own member account in the Prod OU,",
+      "rather than sharing `kgwari-dev` — see kgwari-docs",
+      "platform/web-content-account.md. It is the public content property, a",
+      "different workload from the product rather than an environment of it, and",
+      "`dev` is the environment that gets destroyed and rebuilt on purpose. The",
+      "account is named for the property so `blog.` and `engineering.` do not",
+      "reopen the question.",
       "",
       "No region keys: the region is decided in",
       "infra/cdk/lib/config/environment-configuration.ts. No certificate ARN: the",
       "certificate is created by CDK in us-east-1, where CloudFront requires it.",
-      "Both used to be pasted here, and a pasted ARN is how a certificate for the",
-      "wrong region survives a move unnoticed until deploy."
+      "No hosted zone id either — the zone is created by kgwari-web-dns in this",
+      "account, so there is no id to paste and no lookup to go stale.",
+      "",
+      "Keys are read through toScopedContextKey(appEnvironment, ...) in",
+      "environment-resolver.ts, which is why they are spelled `production*` and",
+      "not `web*`. A `web*` key would be read as absent, and bin/app.ts would",
+      "throw `Account not configured`."
     ],
-    "devAccountId": "269608740515",
-    "devPortfolioDomainName": "portfolio.dev.kgwari.com",
-    "devPortfolioHostedZoneName": "dev.kgwari.com"
+
+    "productionAccountId": "425820476951",
+
+    "productionPortfolioDomainName": "portfolio.kgwari.com",
+    "productionPortfolioHostedZoneName": "portfolio.kgwari.com",
+
+    "_delegationComment": [
+      "The role in the management account (855289196875) that may write this",
+      "zone's NS record into the kgwari.com apex. Scoped to NS records for named",
+      "children only — it cannot touch the apex A records or the Workspace MX",
+      "records. Created by kgwari-backend-app infra/aws/route53-delegation-role.yaml;",
+      "read by scripts/aws/bootstrap-account.mjs so the delegation is not a paste",
+      "job. `kgwari-web` must be a trusted principal on it and `portfolio.kgwari.com`",
+      "one of its permitted record names, or the delegation step fails AccessDenied."
+    ],
+    "delegationRoleArn": "arn:aws:iam::855289196875:role/kgwari-route53-delegation"
   }
 }

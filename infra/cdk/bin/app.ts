@@ -23,7 +23,7 @@ for (const appEnvironment of deploymentTargets) {
 
   if (!deploymentConfiguration.account) {
     throw new Error(
-      `Account not configured for environment ${appEnvironment}. Set ${appEnvironment.toUpperCase()}_ACCOUNT_ID, ACCOUNT_ID, or CDK_DEFAULT_ACCOUNT.`
+      `Account not configured for environment ${appEnvironment}. Fill in '${appEnvironment}AccountId' in cdk.json, which is where it belongs — or, for a one-off synth, pass -c ${appEnvironment}AccountId=… or set ${appEnvironment.toUpperCase()}_ACCOUNT_ID.`
     );
   }
 

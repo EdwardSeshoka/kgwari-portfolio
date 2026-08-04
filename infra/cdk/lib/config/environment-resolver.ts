@@ -12,11 +12,15 @@ import {
 
 export { DEFAULT_APP_ENVIRONMENT };
 
+/**
+ * Two values, and neither is an identifier. The hosted zone id and the
+ * certificate ARN used to be resolved here too; both are now *created* — by
+ * `PortfolioDnsStack` and `PortfolioCertificateStack` — so there is nothing to
+ * paste and nothing that can be pasted pointing at the wrong account or region.
+ */
 export type DeploymentPortfolioConfiguration = Readonly<{
   domainName?: string;
   hostedZoneName?: string;
-  hostedZoneId?: string;
-  certificateArn?: string;
 }>;
 
 export type DeploymentEnvironmentConfiguration = EnvironmentConfiguration &
@@ -114,37 +118,13 @@ export function resolveDeploymentEnvironmentConfiguration(
     allowSharedEnvironmentVariables ? environment.PORTFOLIO_HOSTED_ZONE_NAME : undefined
   );
 
-  const hostedZoneId = firstDefined(
-    readScopedEnvironmentValue(
-      appEnvironment,
-      "PORTFOLIO_HOSTED_ZONE_ID",
-      "PortfolioHostedZoneId",
-      environment,
-      readContext
-    ),
-    allowSharedEnvironmentVariables ? environment.PORTFOLIO_HOSTED_ZONE_ID : undefined
-  );
-
-  const certificateArn = firstDefined(
-    readScopedEnvironmentValue(
-      appEnvironment,
-      "PORTFOLIO_CERTIFICATE_ARN",
-      "PortfolioCertificateArn",
-      environment,
-      readContext
-    ),
-    allowSharedEnvironmentVariables ? environment.PORTFOLIO_CERTIFICATE_ARN : undefined
-  );
-
   return {
     ...environmentConfiguration,
     account,
     region,
     portfolio: {
       ...(domainName ? { domainName } : {}),
-      ...(hostedZoneName ? { hostedZoneName } : {}),
-      ...(hostedZoneId ? { hostedZoneId } : {}),
-      ...(certificateArn ? { certificateArn } : {})
+      ...(hostedZoneName ? { hostedZoneName } : {})
     }
   };
 }
