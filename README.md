@@ -47,9 +47,22 @@ The S3 bucket is private. CloudFront reads it through Origin Access Control.
 ## Local Setup
 
 ```sh
+git clone --recurse-submodules git@github.com:EdwardSeshoka/kgwari-portfolio.git
 npm install
 npm run build
 ```
+
+`kgwari-docs` is checked out as a **submodule** at `kgwari-docs/` — the same
+arrangement as the other three repositories, so the canonical standards are one
+`git submodule update --init` away rather than a directory you have to know to
+clone beside this one. **It is private**, so an outside reader gets the
+repository without it and the `--recurse-submodules` step fails for them; that
+is expected, and nothing here needs it. Read-only from this side: edit docs in a
+clone of kgwari-docs itself, and move the pin deliberately, as its own commit.
+
+Nothing published touches it. The deploy syncs `dist/site`, which is copied from
+`site/`, which is generated solely from `site-src/` — a root-level directory
+cannot reach the bucket. CI does not check the submodule out either.
 
 `build` compiles the CDK TypeScript, regenerates `site/` from `site-src/`, and copies the result into `dist/site/` for the deploy step. Because the site is rebuilt as part of `build`, a committed `site/` can never be deployed stale.
 

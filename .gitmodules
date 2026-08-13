@@ -1,0 +1,4 @@
+[submodule "kgwari-docs"]
+	path = kgwari-docs
+	url = git@github.com:EdwardSeshoka/kgwari-docs.git
+	branch = main
