@@ -13,6 +13,7 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "node --test",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "hooks:install": "git config core.hooksPath .githooks",
     "version:validate": "node ./scripts/portfolio-version.mjs validate",
     "account:build": "npm run build && node scripts/aws/bootstrap-account.mjs",
     "account:build:dry-run": "npm run build && node scripts/aws/bootstrap-account.mjs --dry-run",

@@ -1,0 +1,47 @@
+name: Main Push Policy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  verify-pr-merge:
+    name: Verify pull request merge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the main update to come from a merged pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = context.payload.after;
+            const defaultBranch = context.payload.repository.default_branch;
+            const { data: pulls } =
+              await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner,
+                repo,
+                commit_sha: sha,
+              });
+
+            const mergedPullRequest = pulls.find(
+              (pull) =>
+                pull.merged_at !== null &&
+                pull.base.ref === defaultBranch &&
+                pull.merge_commit_sha === sha,
+            );
+
+            if (!mergedPullRequest) {
+              core.setFailed(
+                `Commit ${sha} reached ${defaultBranch} without a merged pull request. ` +
+                  "Local hooks are the preventive guard; this check records any bypass.",
+              );
+              return;
+            }
+
+            core.info(
+              `Verified pull request #${mergedPullRequest.number}: ${mergedPullRequest.html_url}`,
+            );

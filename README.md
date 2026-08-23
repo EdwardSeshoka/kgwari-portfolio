@@ -49,8 +49,17 @@ The S3 bucket is private. CloudFront reads it through Origin Access Control.
 ```sh
 git clone --recurse-submodules git@github.com:EdwardSeshoka/kgwari-portfolio.git
 npm install
+npm run hooks:install
 npm run build
 ```
+
+### Main branch workflow
+
+Direct local pushes to `main` are blocked by the tracked pre-push hook. Work
+on a feature branch, push that branch, and merge it through a pull request.
+`.github/workflows/main-push-policy.yml` records a failure if the hook is
+bypassed. These guards are defense in depth while this private personal
+repository does not have server-enforced branch protection.
 
 `kgwari-docs` is checked out as a **submodule** at `kgwari-docs/` — the same
 arrangement as the other three repositories, so the canonical standards are one
